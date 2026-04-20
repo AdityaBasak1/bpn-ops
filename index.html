@@ -176,13 +176,105 @@ async function joinTeam(code){
   await loadAll();
 }
 
-// ─── Auto-scan ───
+// ─── Auto-scan + LLM Product Suggestions ───
+function getLLMKey(){return localStorage.getItem("bpn-llm-key")||""}
+function setLLMKey(k){localStorage.setItem("bpn-llm-key",k)}
+function getLLMProvider(){return localStorage.getItem("bpn-llm-provider")||"groq"}
+function setLLMProvider(p){localStorage.setItem("bpn-llm-provider",p)}
+
+const LLM_PROMPT = `You are a football merchandise product strategist for a podcast-led ecommerce store. Given a football news headline, suggest 2-3 sellable product ideas that tap into the moment.
+
+Rules:
+- NO official club badges, sponsor logos, or kit replicas (legal risk)
+- Focus on tribute/fan-art: tee shirts with quotes, posters, prints, scarves, stickers, mugs
+- Each product must be producible via print-on-demand in under 24 hours
+- Keep product names punchy and specific (max 8 words)
+
+Return ONLY valid JSON in this exact format, no markdown, no commentary:
+{"products":[{"name":"...","category":"Apparel|Accessories|Art/Prints|Home|Tech|Stickers/Small","desc":"1-sentence angle","price":25,"cost":8}]}
+
+Categories must be one of: Apparel, Accessories, Art/Prints, Home, Tech, Stickers/Small`;
+
+async function suggestProducts(headline){
+  const key=getLLMKey();
+  const provider=getLLMProvider();
+  if(!key)return null;
+  try{
+    let url, body, headers;
+    if(provider==="groq"){
+      url="https://api.groq.com/openai/v1/chat/completions";
+      headers={"Content-Type":"application/json","Authorization":"Bearer "+key};
+      body=JSON.stringify({model:"llama-3.3-70b-versatile",messages:[{role:"system",content:LLM_PROMPT},{role:"user",content:headline}],temperature:0.7,max_tokens:400,response_format:{type:"json_object"}});
+    } else if(provider==="openai"){
+      url="https://api.openai.com/v1/chat/completions";
+      headers={"Content-Type":"application/json","Authorization":"Bearer "+key};
+      body=JSON.stringify({model:"gpt-4o-mini",messages:[{role:"system",content:LLM_PROMPT},{role:"user",content:headline}],temperature:0.7,max_tokens:400,response_format:{type:"json_object"}});
+    } else if(provider==="anthropic"){
+      url="https://api.anthropic.com/v1/messages";
+      headers={"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"};
+      body=JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:400,system:LLM_PROMPT,messages:[{role:"user",content:headline}]});
+    }
+    const r=await fetch(url,{method:"POST",headers,body});
+    if(!r.ok){console.error("LLM error",r.status,await r.text());return null}
+    const data=await r.json();
+    const txt=provider==="anthropic"?data.content[0].text:data.choices[0].message.content;
+    // Strip markdown fences if present
+    const cleaned=txt.replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
+    const parsed=JSON.parse(cleaned);
+    return parsed.products||null;
+  }catch(e){console.error("Suggest error:",e);return null}
+}
+
 async function fetchReddit(sub,limit=15){
-  try{const r=await fetch("https://www.reddit.com/r/"+sub+"/hot.json?limit="+limit+"&raw_json=1");if(!r.ok)return[];const d=await r.json();return(d.data.children||[]).filter(c=>!c.data.stickied).map(c=>{const p=c.data;const ageH=Math.max(1,(Date.now()/1000-p.created_utc)/3600);const v=Math.min(10,Math.round(Math.log2(1+(p.ups+p.num_comments*3)/ageH)));return{id:"a-"+p.id,keyword:p.title.length>80?p.title.slice(0,77)+"...":p.title,source:"Reddit r/"+sub,velocity:v,notes:p.num_comments+" comments - "+p.ups+" upvotes - "+Math.round(ageH)+"h ago",url:"https://reddit.com"+p.permalink,category:guessCat(p.title),ts:p.created_utc*1000,auto:true}})}catch{return[]}}
+  try{const r=await fetch("https://www.reddit.com/r/"+sub+"/hot.json?limit="+limit+"&raw_json=1");if(!r.ok)return[];const d=await r.json();return(d.data.children||[]).filter(c=>!c.data.stickied).map(c=>{const p=c.data;const ageH=Math.max(1,(Date.now()/1000-p.created_utc)/3600);const v=Math.min(10,Math.round(Math.log2(1+(p.ups+p.num_comments*3)/ageH)));return{id:"a-"+p.id,keyword:p.title.length>80?p.title.slice(0,77)+"...":p.title,fullTitle:p.title,source:"Reddit r/"+sub,velocity:v,notes:p.num_comments+" comments - "+p.ups+" upvotes - "+Math.round(ageH)+"h ago",url:"https://reddit.com"+p.permalink,category:guessCat(p.title),ts:p.created_utc*1000,auto:true,products:null}})}catch{return[]}}
 function guessCat(t){t=t.toLowerCase();if(/kit|jersey|shirt|wear/.test(t))return"Apparel";if(/poster|art|print|photo/.test(t))return"Art/Prints";if(/scarf|hat|flag|badge/.test(t))return"Accessories";return""}
+
 async function scanNow(){
-  S({scanning:true});
-  try{const[a,b,c]=await Promise.all([fetchReddit("soccer",15),fetchReddit("PremierLeague",10),fetchReddit("EFL",8)]);const all=[...a,...b,...c];const seen=new Set();const dd=all.filter(s=>{const k=s.keyword.toLowerCase().slice(0,30);if(seen.has(k))return false;seen.add(k);return true});dd.sort((a,b)=>b.velocity-a.velocity);const autoSignals=dd.slice(0,20);const lastScan=Date.now();localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));localStorage.setItem("bpn-ls",String(lastScan));S({autoSignals,scanning:false,lastScan})}catch(e){console.error(e);S({scanning:false})}
+  S({scanning:true,scanProgress:""});
+  try{
+    const[a,b,c]=await Promise.all([fetchReddit("soccer",15),fetchReddit("PremierLeague",10),fetchReddit("EFL",8)]);
+    const all=[...a,...b,...c];
+    const seen=new Set();
+    const dd=all.filter(s=>{const k=s.keyword.toLowerCase().slice(0,30);if(seen.has(k))return false;seen.add(k);return true});
+    dd.sort((a,b)=>b.velocity-a.velocity);
+    let autoSignals=dd.slice(0,20);
+    S({autoSignals,scanProgress:"Generating product ideas..."});
+    // LLM enrichment for top signals (velocity 6+)
+    if(getLLMKey()){
+      const topSignals=autoSignals.filter(s=>s.velocity>=6).slice(0,8);
+      for(let i=0;i<topSignals.length;i++){
+        S({scanProgress:"Ideas "+(i+1)+"/"+topSignals.length+"..."});
+        const products=await suggestProducts(topSignals[i].fullTitle||topSignals[i].keyword);
+        if(products){const idx=autoSignals.findIndex(s=>s.id===topSignals[i].id);if(idx>=0)autoSignals[idx].products=products}
+        await new Promise(r=>setTimeout(r,250)); // rate limit safety
+        localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
+        S({autoSignals});
+      }
+    }
+    const lastScan=Date.now();
+    localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
+    localStorage.setItem("bpn-ls",String(lastScan));
+    S({autoSignals,scanning:false,lastScan,scanProgress:""})
+  }catch(e){console.error(e);S({scanning:false,scanProgress:""})}
+}
+
+function productToScore(product,sourceSignal){
+  // Pre-fill score page with LLM suggestion + sensible defaults
+  st.df.name=product.name;
+  st.df.moment=sourceSignal.fullTitle||sourceSignal.keyword;
+  st.df.category=product.category||CATS[0];
+  st.df.price=product.price||25;
+  st.df.cost=product.cost||8;
+  // Auto-estimate scores: signal strength from velocity, margin from price/cost, halflife based on source freshness
+  const marginPct=product.price>0?(product.price-product.cost)/product.price:0;
+  st.df.scores={
+    signal: sourceSignal.velocity>=8?2:sourceSignal.velocity>=6?1:0,
+    audience: 1, // default middle, user adjusts
+    speed: 2, // POD is always fast
+    margin: marginPct>=0.35?2:marginPct>=0.2?1:0,
+    halflife: 1, // default middle
+  };
+  S({tab:"score"});
 }
 
 // ─── Data Actions ───
@@ -208,7 +300,7 @@ function btn(text,onClick,color="#2e86de",disabled=false){return h("button",{cla
 // ─── Render ───
 function render(){
   app.innerHTML="";
-  
+
   // ── AUTH SCREEN ──
   if(st.screen==="loading"){app.appendChild(h("div",{className:"auth-wrap"},h("div",{style:{color:"#64748b"}},"Loading...")));return}
   if(st.screen==="auth"){
@@ -316,6 +408,19 @@ function render(){
     sp.appendChild(h("div",{style:{display:"flex",gap:"6px",marginTop:"6px"}},inp(cfg.igHandle||"",v=>{st.cfg.igHandle=v},"IG handle"),inp(cfg.tiktokHandle||"",v=>{st.cfg.tiktokHandle=v},"TikTok handle")));
     sp.appendChild(btn("Save",()=>{setCfgLocal(st.cfg);S({showSetup:false})}));
 
+    // ─── LLM Setup ───
+    const llmBox=h("div",{style:{marginTop:"14px",padding:"10px",background:"rgba(255,255,255,.02)",borderRadius:"6px",border:"1px solid rgba(255,255,255,.06)"}});
+    llmBox.appendChild(h("div",{style:{fontSize:"11px",fontWeight:700,color:"#e2e8f0",marginBottom:"6px"}},"AI Product Suggestions (optional)"));
+    llmBox.appendChild(h("div",{style:{fontSize:"9px",color:"#94a3b8",marginBottom:"8px",lineHeight:"1.5"}},"Auto-suggest sellable products from trending topics. Free with Groq (30 req/min)."));
+    const provSel=sel(getLLMProvider(),v=>{setLLMProvider(v)},["groq","openai","anthropic"],null,{marginBottom:"6px"});
+    llmBox.appendChild(provSel);
+    let llmKey=getLLMKey();
+    const keyInp=h("input",{className:"i",type:"password",value:llmKey,placeholder:"API key (paste here)",onInput:e=>{llmKey=e.target.value}});
+    llmBox.appendChild(keyInp);
+    llmBox.appendChild(h("button",{className:"b",style:{background:"#2e86de",marginTop:"6px"},onClick:()=>{setLLMKey(llmKey);S({showSetup:false})}},"Save API Key"));
+    llmBox.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"6px",lineHeight:"1.5"}},"Get free Groq key: console.groq.com/keys · OpenAI: platform.openai.com · Anthropic: console.anthropic.com"));
+    sp.appendChild(llmBox);
+
     // Show team join code
     (async()=>{const{data}=await sb.from("teams").select("join_code").eq("id",st.teamId).single();if(data){const codeDiv=h("div",{style:{marginTop:"10px",padding:"8px 10px",background:"rgba(34,197,94,.08)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"9px",color:"#64748b"}},"Team join code (share with Tom)"),h("div",{style:{fontSize:"22px",fontWeight:800,fontFamily:"'Space Mono',monospace",color:"#22c55e",letterSpacing:"4px",marginTop:"4px"}},data.join_code));sp.appendChild(codeDiv)}})();
 
@@ -328,16 +433,60 @@ function render(){
   if(tab==="radar"){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Trend Radar"));
     main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Auto-scan Reddit or scan other sources manually."));
-    // Scan button
-    const sr=h("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"14px"}});
-    sr.appendChild(h("button",{className:"b",style:{background:st.scanning?"#334155":"#2e86de",marginTop:0,flex:"1"},onClick:st.scanning?null:scanNow,disabled:st.scanning},st.scanning?"Scanning...":"Scan Now"));
+    // Scan button + progress
+    const sr=h("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"8px"}});
+    sr.appendChild(h("button",{className:"b",style:{background:st.scanning?"#334155":"#2e86de",marginTop:0,flex:"1"},onClick:st.scanning?null:scanNow,disabled:st.scanning},st.scanning?(st.scanProgress||"Scanning..."):"Scan Now"));
     if(st.lastScan>0){const m=Math.round((Date.now()-st.lastScan)/60000);sr.appendChild(h("span",{style:{fontSize:"9px",color:"#475569",whiteSpace:"nowrap"}},m<60?m+"m ago":Math.round(m/60)+"h ago"))}
     main.appendChild(sr);
+    if(!getLLMKey())main.appendChild(h("div",{style:{fontSize:"10px",color:"#f59e0b",marginBottom:"10px",padding:"6px 10px",background:"rgba(245,158,11,.08)",borderRadius:"5px"}},"Tip: Add a free Groq API key in Settings (*) to auto-generate product ideas."));
+    else main.appendChild(h("div",{style:{height:"6px"}}));
 
     // Auto signals
     const hotA=autoSignals.filter(s=>s.velocity>=6);
     const restA=autoSignals.filter(s=>s.velocity<6);
-    if(hotA.length>0)main.appendChild(sec("Detected - Hot ("+hotA.length+")",div=>{hotA.forEach(s=>{const vc=s.velocity>=8?"#22c55e":"#f59e0b";div.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"6px",padding:"8px 10px",background:"rgba(34,197,94,.06)",borderLeft:"3px solid "+vc,borderRadius:"6px",marginBottom:"6px"}},h("div",{style:{flex:"1",minWidth:0}},h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"12px",lineHeight:"1.3"}},s.keyword),h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"2px"}},s.source+" - "+s.notes)),h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",flexShrink:0}},h("div",{style:{fontWeight:800,fontSize:"16px",color:vc}},String(s.velocity)),h("button",{style:{background:"#2e86de",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"4px 10px",borderRadius:"4px",cursor:"pointer"},onClick:()=>autoToScore(s)},"Score >"),h("button",{style:{background:"none",border:"1px solid #334155",color:"#94a3b8",fontSize:"8px",padding:"2px 6px",borderRadius:"3px",cursor:"pointer"},onClick:()=>promoteSignal(s)},"Save"))))})}));
+    if(hotA.length>0)main.appendChild(sec("Detected - Hot ("+hotA.length+")",div=>{
+      hotA.forEach(s=>{
+        const vc=s.velocity>=8?"#22c55e":"#f59e0b";
+        const card=h("div",{style:{background:"rgba(34,197,94,.04)",borderLeft:"3px solid "+vc,borderRadius:"6px",marginBottom:"8px",overflow:"hidden"}});
+        // Headline row
+        card.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"6px",padding:"8px 10px"}},
+          h("div",{style:{flex:"1",minWidth:0}},
+            h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"12px",lineHeight:"1.3"}},s.keyword),
+            h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"2px"}},s.source+" - "+s.notes)
+          ),
+          h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",flexShrink:0}},
+            h("div",{style:{fontWeight:800,fontSize:"16px",color:vc}},String(s.velocity)),
+            h("button",{style:{background:"none",border:"1px solid #334155",color:"#94a3b8",fontSize:"8px",padding:"2px 6px",borderRadius:"3px",cursor:"pointer"},onClick:()=>promoteSignal(s)},"Save")
+          )
+        ));
+        // Product suggestions
+        if(s.products&&s.products.length>0){
+          const pWrap=h("div",{style:{padding:"0 10px 10px",borderTop:"1px solid rgba(255,255,255,.05)"}});
+          pWrap.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginTop:"8px",marginBottom:"6px"}},"Product Ideas"));
+          s.products.forEach(p=>{
+            const margin=p.price>0?Math.round((p.price-p.cost)/p.price*100):0;
+            pWrap.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"8px",padding:"7px 9px",background:"rgba(255,255,255,.03)",borderRadius:"5px",marginBottom:"4px"}},
+              h("div",{style:{flex:"1",minWidth:0}},
+                h("div",{style:{fontSize:"11px",fontWeight:600,color:"#e2e8f0"}},p.name),
+                h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"1px"}},p.desc||""),
+                h("div",{style:{display:"flex",gap:"6px",marginTop:"3px",alignItems:"center"}},
+                  h("span",{style:{fontSize:"9px",background:"rgba(46,134,222,.15)",color:"#93c5fd",padding:"1px 6px",borderRadius:"8px"}},p.category),
+                  h("span",{style:{fontSize:"9px",color:"#94a3b8"}},"£"+p.price+" - "+margin+"%")
+                )
+              ),
+              h("button",{style:{background:"#2e86de",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"6px 10px",borderRadius:"4px",cursor:"pointer",flexShrink:0},onClick:()=>productToScore(p,s)},"Score >")
+            ));
+          });
+          card.appendChild(pWrap);
+        } else {
+          // No products yet — still offer manual score
+          card.appendChild(h("div",{style:{padding:"0 10px 8px"}},
+            h("button",{style:{background:"#2e86de22",border:"1px solid #2e86de",color:"#93c5fd",fontSize:"10px",fontWeight:600,padding:"5px 10px",borderRadius:"4px",cursor:"pointer",width:"100%"},onClick:()=>autoToScore(s)},"Score manually >")
+          ));
+        }
+        div.appendChild(card);
+      });
+    }));
     if(restA.length>0)main.appendChild(sec("Detected - Watch ("+restA.length+")",div=>{restA.forEach(s=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"6px",padding:"5px 8px",borderLeft:"2px solid #334155",marginBottom:"3px",borderRadius:"3px"}},h("span",{style:{flex:"1",fontSize:"11px",color:"#94a3b8",lineHeight:"1.3"}},s.keyword),h("span",{style:{fontWeight:700,fontSize:"12px",color:"#64748b"}},String(s.velocity)),h("button",{style:{background:"#2e86de22",border:"none",color:"#93c5fd",fontSize:"8px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>autoToScore(s)},"Score >")))})},true));
     if(autoSignals.length===0&&!st.scanning)main.appendChild(h("div",{style:{textAlign:"center",padding:"16px",color:"#475569",border:"1px dashed #334155",borderRadius:"8px",marginBottom:"14px",fontSize:"12px"}},"Hit Scan Now to pull trending football topics"));
 
