@@ -258,8 +258,55 @@ async function scanNow(){
   }catch(e){console.error(e);S({scanning:false,scanProgress:""})}
 }
 
+// ─── Shopify Integration via Supabase Edge Functions ───
+// Edge Functions hold Shopify API secret server-side. Deploy them from shopify-edge-functions/
+async function createShopifyDraft(drop){
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(!session){alert("Please sign in again");return}
+    const r=await fetch(`${SUPABASE_URL}/functions/v1/shopify-create-draft`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},
+      body:JSON.stringify({team_id:st.teamId,product:{title:drop.name,body_html:drop.moment||"",vendor:st.teamName,product_type:drop.category,tags:"bpn,moment-drop,"+drop.category.toLowerCase(),variants:[{price:drop.price,cost:drop.cost}]}})
+    });
+    const result=await r.json();
+    if(result.error){alert("Shopify error: "+result.error);return}
+    alert(`Draft created! Opening in Shopify...`);
+    if(result.admin_url)window.open(result.admin_url,"_blank");
+  }catch(e){alert("Error: "+e.message)}
+}
+
+async function syncShopifyOrders(){
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(!session)return;
+    S({syncingShopify:true});
+    const r=await fetch(`${SUPABASE_URL}/functions/v1/shopify-sync-orders`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},
+      body:JSON.stringify({team_id:st.teamId})
+    });
+    const result=await r.json();
+    if(result.orders){
+      // Match orders to active drops by product name
+      const drops=[...st.drops];
+      result.orders.forEach(o=>{
+        const drop=drops.find(d=>d.status==="active"&&o.line_items.some(li=>li.title.toLowerCase().includes(d.name.toLowerCase().slice(0,20))));
+        if(drop){
+          drop.revenue=(drop.revenue||0)+Number(o.total_price);
+          drop.orders=(drop.orders||0)+1;
+        }
+      });
+      // Persist updated drops
+      for(const d of drops.filter(x=>x.status==="active")){await dbUpdate("drop",d)}
+      S({drops,syncingShopify:false,lastShopifySync:Date.now()});
+      localStorage.setItem("bpn-shopify-sync",String(Date.now()));
+      alert(`Synced ${result.orders.length} orders. Drops updated.`);
+    }else{S({syncingShopify:false})}
+  }catch(e){S({syncingShopify:false});alert("Sync error: "+e.message)}
+}
+
 function productToScore(product,sourceSignal){
-  // Pre-fill score page with LLM suggestion + sensible defaults
   st.df.name=product.name;
   st.df.moment=sourceSignal.fullTitle||sourceSignal.keyword;
   st.df.category=product.category||CATS[0];
@@ -275,6 +322,52 @@ function productToScore(product,sourceSignal){
     halflife: 1, // default middle
   };
   S({tab:"score"});
+}
+
+// ─── Real Product Search Links ───
+// Maps each category to the most relevant search keywords/types
+function buildProductSearches(product){
+  // Clean query: extract key nouns/phrases from product name
+  const q=encodeURIComponent(product.name.toLowerCase().replace(/[^a-z0-9\s]/g,"").trim());
+  const cat=(product.category||"").toLowerCase();
+  // Category-specific search modifiers
+  const typeQuery={
+    "apparel":"tshirt",
+    "accessories":"scarf",
+    "art/prints":"poster print",
+    "home":"mug",
+    "tech":"phone case",
+    "stickers/small":"sticker",
+  }[cat]||"";
+  const qWithType=encodeURIComponent((product.name+" "+typeQuery).toLowerCase().replace(/[^a-z0-9\s]/g,"").trim());
+  // Printful catalogue: direct filter by product type
+  const pfType={
+    "apparel":"mens-clothing",
+    "accessories":"accessories",
+    "art/prints":"wall-art",
+    "home":"home-living",
+    "tech":"phone-cases",
+    "stickers/small":"stickers",
+  }[cat]||"all";
+  // Printify
+  const ppType={
+    "apparel":"men-s-clothing",
+    "accessories":"accessories",
+    "art/prints":"wall-art",
+    "home":"home-living",
+    "tech":"phone-cases",
+    "stickers/small":"stickers",
+  }[cat]||"";
+  return [
+    {label:"Printful",icon:"P",url:`https://www.printful.com/products/${pfType}`,desc:"POD templates"},
+    {label:"Printify",icon:"P",url:`https://printify.com/app/products${ppType?'?category='+ppType:''}`,desc:"POD alternative"},
+    {label:"AliExpress",icon:"A",url:`https://www.aliexpress.com/w/wholesale-${qWithType}.html`,desc:"Dropship source"},
+    {label:"Amazon UK",icon:"a",url:`https://www.amazon.co.uk/s?k=${qWithType}`,desc:"Real product reference"},
+    {label:"eBay UK",icon:"e",url:`https://www.ebay.co.uk/sch/i.html?_nkw=${qWithType}&_sop=10`,desc:"Existing listings"},
+    {label:"Etsy",icon:"E",url:`https://www.etsy.com/uk/search?q=${qWithType}`,desc:"Creative references"},
+    {label:"Classic Shirts",icon:"C",url:`https://www.classicfootballshirts.co.uk/search.html?zenid=&keyword=${q}`,desc:"Retro/original shirts"},
+    {label:"Google Images",icon:"G",url:`https://www.google.com/search?tbm=isch&q=${qWithType}`,desc:"Visual reference"},
+  ];
 }
 
 // ─── Data Actions ───
@@ -300,7 +393,7 @@ function btn(text,onClick,color="#2e86de",disabled=false){return h("button",{cla
 // ─── Render ───
 function render(){
   app.innerHTML="";
-
+  
   // ── AUTH SCREEN ──
   if(st.screen==="loading"){app.appendChild(h("div",{className:"auth-wrap"},h("div",{style:{color:"#64748b"}},"Loading...")));return}
   if(st.screen==="auth"){
@@ -406,6 +499,13 @@ function render(){
     sp.appendChild(h("div",{style:{height:"6px"}}));
     sp.appendChild(inp(cfg.storeUrl||"",v=>{st.cfg.storeUrl=v},"Store URL (https://...)"));
     sp.appendChild(h("div",{style:{display:"flex",gap:"6px",marginTop:"6px"}},inp(cfg.igHandle||"",v=>{st.cfg.igHandle=v},"IG handle"),inp(cfg.tiktokHandle||"",v=>{st.cfg.tiktokHandle=v},"TikTok handle")));
+    // Shopify Edge Function toggle
+    const edgeLabel=h("label",{style:{display:"flex",alignItems:"center",gap:"6px",marginTop:"10px",cursor:"pointer",fontSize:"11px",color:"#94a3b8"}});
+    const edgeChk=h("input",{type:"checkbox",checked:!!cfg.shopifyEdgeConfigured,style:{cursor:"pointer"},onChange:e=>{st.cfg.shopifyEdgeConfigured=e.target.checked}});
+    edgeLabel.appendChild(edgeChk);
+    edgeLabel.appendChild(h("span",null,"Shopify Edge Functions deployed (enable after setup)"));
+    sp.appendChild(edgeLabel);
+    sp.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"2px",marginLeft:"22px"}},"Unlocks 'Create Draft in Shopify' and order auto-sync. See SHOPIFY-SETUP.md."));
     sp.appendChild(btn("Save",()=>{setCfgLocal(st.cfg);S({showSetup:false})}));
 
     // ─── LLM Setup ───
@@ -462,20 +562,32 @@ function render(){
         // Product suggestions
         if(s.products&&s.products.length>0){
           const pWrap=h("div",{style:{padding:"0 10px 10px",borderTop:"1px solid rgba(255,255,255,.05)"}});
-          pWrap.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginTop:"8px",marginBottom:"6px"}},"Product Ideas"));
+          pWrap.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginTop:"8px",marginBottom:"6px"}},"Product Ideas - Find Real Products to Ship"));
           s.products.forEach(p=>{
             const margin=p.price>0?Math.round((p.price-p.cost)/p.price*100):0;
-            pWrap.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"8px",padding:"7px 9px",background:"rgba(255,255,255,.03)",borderRadius:"5px",marginBottom:"4px"}},
+            const searches=buildProductSearches(p);
+            const prodCard=h("div",{style:{background:"rgba(255,255,255,.03)",borderRadius:"5px",marginBottom:"6px",overflow:"hidden"}});
+            // Top row: name + score button
+            prodCard.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"8px",padding:"8px 10px"}},
               h("div",{style:{flex:"1",minWidth:0}},
                 h("div",{style:{fontSize:"11px",fontWeight:600,color:"#e2e8f0"}},p.name),
-                h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"1px"}},p.desc||""),
-                h("div",{style:{display:"flex",gap:"6px",marginTop:"3px",alignItems:"center"}},
+                p.desc?h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"1px",lineHeight:"1.4"}},p.desc):null,
+                h("div",{style:{display:"flex",gap:"6px",marginTop:"4px",alignItems:"center",flexWrap:"wrap"}},
                   h("span",{style:{fontSize:"9px",background:"rgba(46,134,222,.15)",color:"#93c5fd",padding:"1px 6px",borderRadius:"8px"}},p.category),
-                  h("span",{style:{fontSize:"9px",color:"#94a3b8"}},"£"+p.price+" - "+margin+"%")
+                  h("span",{style:{fontSize:"9px",color:"#94a3b8"}},"£"+p.price),
+                  h("span",{style:{fontSize:"9px",color:margin>=30?"#22c55e":margin>=20?"#f59e0b":"#ef4444",fontWeight:600}},margin+"% margin")
                 )
               ),
               h("button",{style:{background:"#2e86de",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"6px 10px",borderRadius:"4px",cursor:"pointer",flexShrink:0},onClick:()=>productToScore(p,s)},"Score >")
             ));
+            // Real product search links — horizontal scrolling row
+            const linkRow=h("div",{style:{padding:"0 10px 8px",display:"flex",gap:"4px",flexWrap:"wrap"}});
+            linkRow.appendChild(h("div",{style:{fontSize:"8px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",width:"100%",marginBottom:"3px"}},"Find real product:"));
+            searches.forEach(l=>{
+              linkRow.appendChild(h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer",title:l.desc,style:{display:"inline-block",padding:"3px 8px",background:"rgba(46,134,222,.08)",color:"#93c5fd",fontSize:"10px",fontWeight:600,borderRadius:"3px",textDecoration:"none",border:"1px solid rgba(46,134,222,.15)"}},l.label+" ↗"));
+            });
+            prodCard.appendChild(linkRow);
+            pWrap.appendChild(prodCard);
           });
           card.appendChild(pWrap);
         } else {
@@ -508,7 +620,20 @@ function render(){
     f.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",margin:"3px 0 10px",textAlign:"right"},innerHTML:"Margin: <b style='color:"+(marginPct>=20?"#22c55e":"#ef4444")+"'>"+marginPct+"%</b>"}));
     DIMS.forEach(dim=>{const d=h("div",{style:{marginBottom:"10px"}});d.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between"}},h("span",{style:{fontWeight:600,color:"#e2e8f0",fontSize:"11px"}},dim.label),h("span",{style:{color:scCol[df.scores[dim.key]],fontWeight:800}},String(df.scores[dim.key]))));d.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginBottom:"3px"}},dim.desc));const bs=h("div",{style:{display:"flex",gap:"5px"}});[0,1,2].forEach(v=>{const c=scCol[v],sl=df.scores[dim.key]===v;bs.appendChild(h("button",{style:{flex:"1",height:"28px",border:"2px solid "+(sl?c:"#334155"),borderRadius:"5px",background:sl?c+"22":"transparent",color:sl?c:"#475569",fontWeight:700,cursor:"pointer"},onClick:()=>{st.df.scores[dim.key]=v;render()}},String(v)))});d.appendChild(bs);f.appendChild(d)});
     f.appendChild(h("div",{style:{textAlign:"center",padding:"10px 0",borderTop:"1px solid rgba(255,255,255,.06)"}},h("div",{style:{fontSize:"38px",fontWeight:800,fontFamily:"'Space Mono',monospace",color:vCol},innerHTML:totalSc+"<span style='font-size:16px;color:#64748b'>/10</span>"}),h("div",{style:{fontSize:"11px",fontWeight:700,color:vCol}},vTxt)));
-    if(totalSc>=6){f.appendChild(btn(totalSc>=8?"Fast-Track Drop":"Ship Drop",shipDrop,totalSc>=8?"#22c55e":"#f59e0b",!df.name.trim()));if(cfg.shopifyDomain)f.appendChild(h("a",{href:links.shopify[1].url,target:"_blank",rel:"noopener noreferrer",style:{display:"block",textAlign:"center",marginTop:"6px",fontSize:"10px",color:"#93c5fd"}},"Open Shopify > Add Product >"))}
+    if(totalSc>=6){
+      f.appendChild(btn(totalSc>=8?"Fast-Track Drop":"Ship Drop",shipDrop,totalSc>=8?"#22c55e":"#f59e0b",!df.name.trim()));
+      if(cfg.shopifyDomain){
+        // Build Shopify Add Product URL with pre-filled fields via query params
+        const shopifyAddUrl=`https://admin.shopify.com/store/${cfg.shopifyDomain}/products/new?title=${encodeURIComponent(df.name)}&vendor=${encodeURIComponent(st.teamName||"BPN")}&price=${df.price}&compare_at_price=&product_type=${encodeURIComponent(df.category)}&tags=${encodeURIComponent("bpn,"+df.category.toLowerCase()+",moment-drop")}`;
+        const shopifyRow=h("div",{style:{display:"flex",gap:"6px",marginTop:"6px"}});
+        shopifyRow.appendChild(h("a",{href:shopifyAddUrl,target:"_blank",rel:"noopener noreferrer",style:{flex:"1",display:"block",textAlign:"center",padding:"7px 10px",background:"#95BF47",color:"#fff",fontWeight:700,fontSize:"11px",borderRadius:"5px",textDecoration:"none"}},"Open Shopify with pre-filled fields ↗"));
+        // Edge Function draft creation (only if Shopify credentials configured via Edge Function)
+        if(cfg.shopifyEdgeConfigured){
+          shopifyRow.appendChild(h("button",{style:{flex:"1",padding:"7px 10px",background:"#004C3F",color:"#fff",fontWeight:700,fontSize:"11px",borderRadius:"5px",border:"none",cursor:"pointer"},onClick:()=>createShopifyDraft(df)},"Create Draft in Shopify"));
+        }
+        f.appendChild(shopifyRow);
+      }
+    }
     main.appendChild(f);
     main.appendChild(h("div",{className:"wb"},h("div",{style:{fontWeight:700,color:"#ef4444",fontSize:"10px"}},"Sanity Gates"),h("div",{style:{fontSize:"9px",color:"#94a3b8",lineHeight:"1.6",marginTop:"2px"}},"No badges/logos - Margin 20%+ - Producible <24h - Trademark check")));
   }
@@ -517,6 +642,17 @@ function render(){
   if(tab==="drops"){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Drops"));
     main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Track revenue, orders, ad spend, returns."));
+
+    // Shopify auto-sync button (visible if Shopify Edge Function is configured)
+    if(cfg.shopifyEdgeConfigured){
+      const lastSync=+(localStorage.getItem("bpn-shopify-sync")||0);
+      const syncMin=lastSync>0?Math.round((Date.now()-lastSync)/60000):null;
+      const syncRow=h("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"10px"}});
+      syncRow.appendChild(h("button",{className:"b",style:{background:st.syncingShopify?"#334155":"#95BF47",marginTop:0,flex:"1"},onClick:st.syncingShopify?null:syncShopifyOrders,disabled:st.syncingShopify},st.syncingShopify?"Syncing...":"Sync Orders from Shopify"));
+      if(syncMin!==null)syncRow.appendChild(h("span",{style:{fontSize:"9px",color:"#475569",whiteSpace:"nowrap"}},syncMin<60?syncMin+"m":Math.round(syncMin/60)+"h"+" ago"));
+      main.appendChild(syncRow);
+    }
+
     if(cfg.shopifyDomain)main.appendChild(sec("Pull Numbers From",div=>{const g=h("div",{className:"g2"});links.shopify.slice(2,6).forEach(l=>g.appendChild(lnk(l)));g.appendChild(lnk({label:"Meta Ads",url:"https://adsmanager.facebook.com",desc:"Ad spend"}));g.appendChild(lnk({label:"TikTok Ads",url:"https://business.tiktok.com",desc:"TT spend"}));div.appendChild(g)}));
     active.forEach(d=>{const age=daysAgo(d.ts),prof=(d.revenue||0)-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0),mgn=d.revenue>0?Math.round(prof/d.revenue*100):0,sc=Object.values(d.scores||{}).reduce((a,b)=>a+b,0),roas=(d.adSpend||0)>0?((d.revenue||0)/d.adSpend).toFixed(1)+"x":"--",kw=age>=3&&(d.orders||0)<10;const c=h("div",{style:{background:"rgba(255,255,255,.03)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid #22c55e",border:"1px solid rgba(255,255,255,.06)"}});c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between"}},h("div",null,h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"13px"}},d.name),h("div",{style:{fontSize:"9px",color:"#64748b"}},d.category+" - Day "+age+" - Score "+sc+"/10"),d.moment?h("div",{style:{fontSize:"9px",color:"#475569"}},d.moment):null),kw?h("div",{style:{fontSize:"9px",color:"#ef4444",fontWeight:700}},"<10 in 72h!"):null));
     const ig=h("div",{className:"g4",style:{marginTop:"8px"}});[{l:"Revenue",k:"revenue",c:"#22c55e"},{l:"Orders",k:"orders",c:"#e2e8f0"},{l:"Ad Spend",k:"adSpend",c:"#f59e0b"},{l:"Returns",k:"returns",c:"#ef4444"}].forEach(f=>{const col=h("div",null,h("div",{style:{fontSize:"8px",color:"#64748b"}},f.l),h("input",{type:"number",value:String(d[f.k]||""),style:{width:"100%",padding:"4px 5px",borderRadius:"4px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:f.c,fontWeight:700,fontSize:"12px",boxSizing:"border-box"},onInput:e=>updDrop(d.id,{[f.k]:+e.target.value||0})}));ig.appendChild(col)});c.appendChild(ig);
