@@ -52,10 +52,10 @@ const $=document.getElementById.bind(document);
 const app=$("app");
 
 const SOURCES=["TikTok Creative Center","Google Trends","Reddit","Meta Ad Library","Amazon Movers","eBay Sold","RSS / News","Podcast DMs","Shopify Data","Other"];
-const CATS=["Apparel","Accessories","Art/Prints","Home","Tech","Stickers/Small","Other"];
+const CATS=["Apparel","Accessories","Collectibles","Books","Games","Home","Tech","Food","Fitness","Other"];
 const DIMS=[{key:"signal",label:"Signal Strength",desc:"How many sources confirm?"},{key:"audience",label:"Audience Fit",desc:"Does the podcast tribe want this?"},{key:"speed",label:"Production Speed",desc:"Live in under 24h?"},{key:"margin",label:"Margin Potential",desc:"Above 20% gross?"},{key:"halflife",label:"Moment Half-life",desc:"Days of relevance?"}];
 const PLATS=["IG Reel","IG Story","IG Carousel","TikTok","Podcast Clip","Email"];
-const TABS=[{id:"radar",icon:"R",label:"Radar"},{id:"score",icon:"S",label:"Score"},{id:"drops",icon:"D",label:"Drops"},{id:"content",icon:"C",label:"Content"},{id:"money",icon:"P",label:"P+L"},{id:"hub",icon:"H",label:"Hub"}];
+const TABS=[{id:"radar",icon:"R",label:"Radar"},{id:"promos",icon:"★",label:"Promos"},{id:"drops",icon:"D",label:"Drops"},{id:"content",icon:"C",label:"Content"},{id:"money",icon:"P",label:"P+L"},{id:"hub",icon:"H",label:"Hub"}];
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function fmtD(ts){return new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
@@ -69,6 +69,7 @@ function setCfgLocal(c){localStorage.setItem("bpn-cfg",JSON.stringify(c))}
 function getLinks(cfg){
   const s=cfg.shopifyDomain||"your-store";
   return{research:[{label:"TikTok Creative Center",url:"https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en",desc:"Trending hashtags"},{label:"Google Trends UK",url:"https://trends.google.co.uk/trending?geo=GB&category=20",desc:"Rising sports queries"},{label:"Reddit r/soccer",url:"https://www.reddit.com/r/soccer/top/?t=day",desc:"Top posts today"},{label:"Reddit r/PremierLeague",url:"https://www.reddit.com/r/PremierLeague/top/?t=day",desc:"PL daily top"},{label:"Meta Ad Library",url:"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=GB",desc:"Active merch ads UK"},{label:"Amazon Movers",url:"https://www.amazon.co.uk/gp/movers-and-shakers/sports",desc:"Sports movers"},{label:"eBay Sold",url:"https://www.ebay.co.uk/sch/i.html?_nkw=football+shirt&LH_Complete=1&LH_Sold=1&_sop=10",desc:"Sold football items"},{label:"Classic Football Shirts",url:"https://www.classicfootballshirts.co.uk/clearance-football-shirts.html",desc:"Retro movers"}],
+  affiliate:[{label:"TikTok Affiliate Center",url:"https://affiliate.tiktok.com/connection/product?shop_region=GB",desc:"Browse products to promote"},{label:"TikTok Seller Center",url:"https://seller.tiktok.com",desc:"Creator dashboard"},{label:"Amazon Associates UK",url:"https://affiliate-program.amazon.co.uk/home",desc:"Your affiliate dashboard"},{label:"Amazon SiteStripe",url:"https://www.amazon.co.uk",desc:"Generate affiliate links"},{label:"Awin",url:"https://www.awin.com/gb/publisher",desc:"UK sports merchants"},{label:"CJ Affiliate",url:"https://members.cj.com",desc:"Brands inc. Adidas, Nike"},{label:"Impact",url:"https://app.impact.com",desc:"Classic Football Shirts etc"}],
   shopify:[{label:"Admin",url:"https://admin.shopify.com/store/"+s,desc:"Store home"},{label:"Add Product",url:"https://admin.shopify.com/store/"+s+"/products/new",desc:"New listing"},{label:"Orders",url:"https://admin.shopify.com/store/"+s+"/orders",desc:"All orders"},{label:"Analytics",url:"https://admin.shopify.com/store/"+s+"/analytics",desc:"Revenue + conversion"},{label:"Live View",url:"https://admin.shopify.com/store/"+s+"/analytics/liveView",desc:"Real-time visitors"},{label:"Customers",url:"https://admin.shopify.com/store/"+s+"/customers",desc:"Customer list"},{label:"Discounts",url:"https://admin.shopify.com/store/"+s+"/discounts/new",desc:"New discount"},{label:"Abandoned Carts",url:"https://admin.shopify.com/store/"+s+"/checkouts",desc:"Recover sales"}],
   social:[{label:"Meta Business Suite",url:"https://business.facebook.com/latest/home",desc:"IG insights"},{label:"Instagram",url:"https://www.instagram.com/"+(cfg.igHandle||"thebluepodcastnetwork")+"/",desc:"Profile"},{label:"TikTok Analytics",url:"https://www.tiktok.com/analytics",desc:"Video stats"},{label:"TikTok Ads",url:"https://business.tiktok.com",desc:"TikTok Ads"},{label:"Meta Ads",url:"https://adsmanager.facebook.com",desc:"Meta Ads"}],
   tools:[{label:"Printful",url:"https://www.printful.com/dashboard",desc:"POD"},{label:"Gelato",url:"https://dashboard.gelato.com",desc:"POD alt"},{label:"Klaviyo",url:"https://www.klaviyo.com/dashboard",desc:"Email"},{label:"Canva",url:"https://www.canva.com",desc:"Graphics"}]};
@@ -81,7 +82,7 @@ let st={
   screen:"loading", // loading, auth, team, app
   user:null, teamId:null, teamName:null,
   tab:"radar", cfg:getCfg(),
-  signals:[], drops:[], posts:[],
+  signals:[], drops:[], posts:[], promos:[],
   sf:{keyword:"",source:SOURCES[0],velocity:5,notes:"",category:""},
   df:{name:"",moment:"",category:CATS[0],price:30,cost:10,scores:{signal:0,audience:0,speed:0,margin:0,halflife:0}},
   pf:{platform:PLATS[0],caption:"",dropId:""},
@@ -113,8 +114,8 @@ async function dbDelete(type,itemId){
   await sb.from("bpn").delete().eq("item_id",itemId).eq("team_id",st.teamId);
 }
 async function loadAll(){
-  const[signals,drops,posts]=await Promise.all([dbLoad("signal"),dbLoad("drop"),dbLoad("post")]);
-  S({signals,drops,posts,screen:"app"});
+  const[signals,drops,posts,promos]=await Promise.all([dbLoad("signal"),dbLoad("drop"),dbLoad("post"),dbLoad("promo")]);
+  S({signals,drops,posts,promos,screen:"app"});
 }
 
 // ─── Auth ───
@@ -182,18 +183,18 @@ function setLLMKey(k){localStorage.setItem("bpn-llm-key",k)}
 function getLLMProvider(){return localStorage.getItem("bpn-llm-provider")||"groq"}
 function setLLMProvider(p){localStorage.setItem("bpn-llm-provider",p)}
 
-const LLM_PROMPT = `You are a football merchandise product strategist for a podcast-led ecommerce store. Given a football news headline, suggest 2-3 sellable product ideas that tap into the moment.
+const LLM_PROMPT = `You are a TikTok Shop affiliate product strategist for a football-focused creator account. Given a football news headline, suggest 3-5 REAL EXISTING product categories that you can find on TikTok Shop or Amazon UK to tag in a TikTok video capitalising on this moment.
 
-Rules:
-- NO official club badges, sponsor logos, or kit replicas (legal risk)
-- Focus on tribute/fan-art: tee shirts with quotes, posters, prints, scarves, stickers, mugs
-- Each product must be producible via print-on-demand in under 24 hours
-- Keep product names punchy and specific (max 8 words)
+CRITICAL RULES:
+- Suggest REAL PRODUCT TYPES THAT ALREADY EXIST on TikTok Shop / Amazon (e.g. "LED football-shaped night light", "Liverpool FC scarf", "Football Manager 2026 game", "Panini Premier League stickers 2026")
+- NOT custom designs, NOT print-on-demand, NOT things you'd make yourself
+- Mix of football-specific (fan merch, books, games) AND loosely-related products that fit the moment (e.g. "kitchen gadget" for a cooking-related player meme, "mens grooming kit" for a footballer known for style)
+- Products must be broadly available: jerseys, scarves, books, video games, collectibles, posters, drinkware, electronics, home goods, fitness gear, snacks
+- Use SEARCH-FRIENDLY keywords — plain nouns, no quotes or apostrophes, no punctuation
+- Price range £5-£60 (TikTok Shop sweet spot)
 
 Return ONLY valid JSON in this exact format, no markdown, no commentary:
-{"products":[{"name":"...","category":"Apparel|Accessories|Art/Prints|Home|Tech|Stickers/Small","desc":"1-sentence angle","price":25,"cost":8}]}
-
-Categories must be one of: Apparel, Accessories, Art/Prints, Home, Tech, Stickers/Small`;
+{"products":[{"name":"short product name","search":"2-4 plain keywords for search","category":"Apparel|Accessories|Collectibles|Books|Games|Home|Tech|Food|Fitness|Other","desc":"1-sentence angle for the TikTok video hook","price":25}]}`;
 
 async function suggestProducts(headline){
   const key=getLLMKey();
@@ -327,46 +328,22 @@ function productToScore(product,sourceSignal){
 // ─── Real Product Search Links ───
 // Maps each category to the most relevant search keywords/types
 function buildProductSearches(product){
-  // Clean query: extract key nouns/phrases from product name
-  const q=encodeURIComponent(product.name.toLowerCase().replace(/[^a-z0-9\s]/g,"").trim());
-  const cat=(product.category||"").toLowerCase();
-  // Category-specific search modifiers
-  const typeQuery={
-    "apparel":"tshirt",
-    "accessories":"scarf",
-    "art/prints":"poster print",
-    "home":"mug",
-    "tech":"phone case",
-    "stickers/small":"sticker",
-  }[cat]||"";
-  const qWithType=encodeURIComponent((product.name+" "+typeQuery).toLowerCase().replace(/[^a-z0-9\s]/g,"").trim());
-  // Printful catalogue: direct filter by product type
-  const pfType={
-    "apparel":"mens-clothing",
-    "accessories":"accessories",
-    "art/prints":"wall-art",
-    "home":"home-living",
-    "tech":"phone-cases",
-    "stickers/small":"stickers",
-  }[cat]||"all";
-  // Printify
-  const ppType={
-    "apparel":"men-s-clothing",
-    "accessories":"accessories",
-    "art/prints":"wall-art",
-    "home":"home-living",
-    "tech":"phone-cases",
-    "stickers/small":"stickers",
-  }[cat]||"";
+  // Prefer LLM-provided clean search query, fallback to cleaned name
+  const raw=(product.search||product.name||"").toLowerCase().replace(/[^a-z0-9\s]/g,"").trim();
+  const q=encodeURIComponent(raw);
+  // Amazon Associates UK affiliate tag from config (e.g. "bpnetwork-21")
+  const amznTag=st.cfg.amazonTag||"";
+  const amznSuffix=amznTag?`&tag=${encodeURIComponent(amznTag)}`:"";
+  // TikTok Shop deep link — opens in TikTok app on mobile
+  // Web: https://www.tiktok.com/shop/search?q=X
+  // Some devices open app directly with this URL scheme
   return [
-    {label:"Printful",icon:"P",url:`https://www.printful.com/products/${pfType}`,desc:"POD templates"},
-    {label:"Printify",icon:"P",url:`https://printify.com/app/products${ppType?'?category='+ppType:''}`,desc:"POD alternative"},
-    {label:"AliExpress",icon:"A",url:`https://www.aliexpress.com/w/wholesale-${qWithType}.html`,desc:"Dropship source"},
-    {label:"Amazon UK",icon:"a",url:`https://www.amazon.co.uk/s?k=${qWithType}`,desc:"Real product reference"},
-    {label:"eBay UK",icon:"e",url:`https://www.ebay.co.uk/sch/i.html?_nkw=${qWithType}&_sop=10`,desc:"Existing listings"},
-    {label:"Etsy",icon:"E",url:`https://www.etsy.com/uk/search?q=${qWithType}`,desc:"Creative references"},
-    {label:"Classic Shirts",icon:"C",url:`https://www.classicfootballshirts.co.uk/search.html?zenid=&keyword=${q}`,desc:"Retro/original shirts"},
-    {label:"Google Images",icon:"G",url:`https://www.google.com/search?tbm=isch&q=${qWithType}`,desc:"Visual reference"},
+    {label:"TikTok Shop",icon:"TT",url:`https://www.tiktok.com/shop/s/${q}`,desc:"Search TikTok Shop (opens in app on mobile)",primary:true},
+    {label:"TikTok Affiliate Center",icon:"TA",url:`https://affiliate.tiktok.com/connection/product?shop_region=GB`,desc:"Browse all affiliate products"},
+    {label:"Amazon UK",icon:"AZ",url:`https://www.amazon.co.uk/s?k=${q}${amznSuffix}`,desc:amznTag?"Search Amazon with your affiliate tag":"Add tag in Settings to earn commission",primary:true},
+    {label:"Awin Sports",icon:"AW",url:`https://ui.awin.com/merchant-profile/search?search=${q}`,desc:"Browse UK sports merchants (requires Awin account)"},
+    {label:"eBay UK",icon:"EB",url:`https://www.ebay.co.uk/sch/i.html?_nkw=${q}&_sop=12`,desc:"Live listings, best match"},
+    {label:"Google Shopping",icon:"GS",url:`https://www.google.com/search?tbm=shop&q=${q}`,desc:"Price compare across retailers"},
   ];
 }
 
@@ -380,6 +357,37 @@ async function updDrop(id,ch){const drops=st.drops.map(d=>d.id===id?{...d,...ch}
 async function addPost(){const{pf}=st;if(!pf.caption.trim())return;const item={id:uid(),platform:pf.platform,caption:pf.caption.trim(),dropId:pf.dropId,posted:false,ts:Date.now()};const posts=[item,...st.posts];await dbInsert("post",item);S({posts,pf:{platform:PLATS[0],caption:"",dropId:""}})}
 async function togPost(id){const posts=st.posts.map(p=>p.id===id?{...p,posted:!p.posted}:p);const u=posts.find(p=>p.id===id);if(u)await dbUpdate("post",u);S({posts})}
 async function delPost(id){const posts=st.posts.filter(p=>p.id!==id);await dbDelete("post",id);S({posts})}
+
+async function logPromotion(product,sourceSignal,platform){
+  const item={
+    id:uid(),
+    productName:product.name,
+    searchQuery:product.search||product.name,
+    category:product.category||"Other",
+    platform:platform||"tiktok-shop",
+    moment:sourceSignal.fullTitle||sourceSignal.keyword,
+    momentSource:sourceSignal.source,
+    velocity:sourceSignal.velocity||0,
+    status:"posted", // posted, pending-sale, earned, dud
+    clicks:0, sales:0, commission:0, adSpend:0,
+    videoUrl:"", notes:"",
+    ts:Date.now(),
+  };
+  const promos=[item,...st.promos];
+  await dbInsert("promo",item);
+  S({promos,tab:"promos"});
+}
+async function updPromo(id,ch){
+  const promos=st.promos.map(p=>p.id===id?{...p,...ch}:p);
+  const u=promos.find(p=>p.id===id);
+  if(u)await dbUpdate("promo",u);
+  S({promos});
+}
+async function delPromo(id){
+  const promos=st.promos.filter(p=>p.id!==id);
+  await dbDelete("promo",id);
+  S({promos});
+}
 
 // ─── DOM helpers ───
 function h(tag,attrs,...ch){const el=document.createElement(tag);if(attrs)Object.entries(attrs).forEach(([k,v])=>{if(k==="style"&&typeof v==="object")Object.assign(el.style,v);else if(k.startsWith("on"))el.addEventListener(k.slice(2).toLowerCase(),v);else if(k==="className")el.className=v;else if(k==="innerHTML")el.innerHTML=v;else if(["value","placeholder","type","rows","min","max","href","target","rel","disabled","checked"].includes(k))el[k]=v;else el.setAttribute(k,v)});ch.flat(9).forEach(c=>{if(c!=null&&c!==false)el.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(String(c)):c)});return el}
@@ -456,19 +464,27 @@ function render(){
   }
 
   // ── MAIN APP ──
-  const{tab,cfg,signals,drops,posts,sf,df,pf,utm,autoSignals,showSetup}=st;
+  const{tab,cfg,signals,drops,posts,promos,sf,df,pf,utm,autoSignals,showSetup}=st;
   const links=getLinks(cfg);
   const hot=signals.filter(s=>s.velocity>=7);
   const active=drops.filter(d=>d.status==="active");
   const wk=drops.filter(d=>Date.now()-d.ts<7*86400000);
   const mo=drops.filter(d=>Date.now()-d.ts<30*86400000);
-  const wRev=wk.reduce((a,d)=>a+(d.revenue||0),0);
-  const wOrd=wk.reduce((a,d)=>a+(d.orders||0),0);
-  const wAd=wk.reduce((a,d)=>a+(d.adSpend||0),0);
+  // Promo commission windows (affiliate revenue)
+  const wkPromos=(promos||[]).filter(p=>Date.now()-p.ts<7*86400000);
+  const moPromos=(promos||[]).filter(p=>Date.now()-p.ts<30*86400000);
+  const wCommission=wkPromos.reduce((a,p)=>a+(Number(p.commission)||0),0);
+  const wPromoAd=wkPromos.reduce((a,p)=>a+(Number(p.adSpend)||0),0);
+  const mCommission=moPromos.reduce((a,p)=>a+(Number(p.commission)||0),0);
+  const mPromoAd=moPromos.reduce((a,p)=>a+(Number(p.adSpend)||0),0);
+  // Combined (drops + affiliate)
+  const wRev=wk.reduce((a,d)=>a+(d.revenue||0),0)+wCommission;
+  const wOrd=wk.reduce((a,d)=>a+(d.orders||0),0)+wkPromos.reduce((a,p)=>a+(Number(p.sales)||0),0);
+  const wAd=wk.reduce((a,d)=>a+(d.adSpend||0),0)+wPromoAd;
   const wCOGS=wk.reduce((a,d)=>a+((d.cost||0)*(d.orders||0)),0);
   const wProf=wRev-wCOGS-wAd-wk.reduce((a,d)=>a+(d.returns||0),0);
-  const mRev=mo.reduce((a,d)=>a+(d.revenue||0),0);
-  const mProf=mRev-mo.reduce((a,d)=>a+((d.cost||0)*(d.orders||0))+(d.adSpend||0)+(d.returns||0),0);
+  const mRev=mo.reduce((a,d)=>a+(d.revenue||0),0)+mCommission;
+  const mProf=mRev-mo.reduce((a,d)=>a+((d.cost||0)*(d.orders||0))+(d.adSpend||0)+(d.returns||0),0)-mPromoAd;
   const pwk=posts.filter(p=>Date.now()-p.ts<7*86400000);
   const postedCt=pwk.filter(p=>p.posted).length;
   const totalSc=Object.values(df.scores).reduce((a,b)=>a+b,0);
@@ -499,6 +515,14 @@ function render(){
     sp.appendChild(h("div",{style:{height:"6px"}}));
     sp.appendChild(inp(cfg.storeUrl||"",v=>{st.cfg.storeUrl=v},"Store URL (https://...)"));
     sp.appendChild(h("div",{style:{display:"flex",gap:"6px",marginTop:"6px"}},inp(cfg.igHandle||"",v=>{st.cfg.igHandle=v},"IG handle"),inp(cfg.tiktokHandle||"",v=>{st.cfg.tiktokHandle=v},"TikTok handle")));
+    // Affiliate setup block
+    sp.appendChild(h("div",{style:{fontSize:"10px",fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"1px",marginTop:"12px",marginBottom:"6px"}},"Affiliate Tags"));
+    sp.appendChild(inp(cfg.amazonTag||"",v=>{st.cfg.amazonTag=v},"Amazon Associates UK tag (e.g. bpnetwork-21)","text",{marginBottom:"6px"}));
+    const tkLabel=h("label",{style:{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px",color:"#94a3b8",cursor:"pointer",marginBottom:"4px"}});
+    tkLabel.appendChild(h("input",{type:"checkbox",checked:!!cfg.tiktokShopApproved,onChange:e=>{st.cfg.tiktokShopApproved=e.target.checked}}));
+    tkLabel.appendChild(h("span",null,"TikTok Shop Affiliate approved"));
+    sp.appendChild(tkLabel);
+    sp.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginLeft:"22px",marginBottom:"8px",lineHeight:"1.4"}},"Get your Amazon tag free at affiliate-program.amazon.co.uk. Apply to TikTok Shop Affiliate in the TikTok app under Creator Tools."));
     // Shopify Edge Function toggle
     const edgeLabel=h("label",{style:{display:"flex",alignItems:"center",gap:"6px",marginTop:"10px",cursor:"pointer",fontSize:"11px",color:"#94a3b8"}});
     const edgeChk=h("input",{type:"checkbox",checked:!!cfg.shopifyEdgeConfigured,style:{cursor:"pointer"},onChange:e=>{st.cfg.shopifyEdgeConfigured=e.target.checked}});
@@ -562,29 +586,28 @@ function render(){
         // Product suggestions
         if(s.products&&s.products.length>0){
           const pWrap=h("div",{style:{padding:"0 10px 10px",borderTop:"1px solid rgba(255,255,255,.05)"}});
-          pWrap.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginTop:"8px",marginBottom:"6px"}},"Product Ideas - Find Real Products to Ship"));
+          pWrap.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginTop:"8px",marginBottom:"6px"}},"Real products to promote"));
           s.products.forEach(p=>{
-            const margin=p.price>0?Math.round((p.price-p.cost)/p.price*100):0;
             const searches=buildProductSearches(p);
             const prodCard=h("div",{style:{background:"rgba(255,255,255,.03)",borderRadius:"5px",marginBottom:"6px",overflow:"hidden"}});
-            // Top row: name + score button
+            // Top row: name + promote button
             prodCard.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"8px",padding:"8px 10px"}},
               h("div",{style:{flex:"1",minWidth:0}},
                 h("div",{style:{fontSize:"11px",fontWeight:600,color:"#e2e8f0"}},p.name),
                 p.desc?h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"1px",lineHeight:"1.4"}},p.desc):null,
                 h("div",{style:{display:"flex",gap:"6px",marginTop:"4px",alignItems:"center",flexWrap:"wrap"}},
                   h("span",{style:{fontSize:"9px",background:"rgba(46,134,222,.15)",color:"#93c5fd",padding:"1px 6px",borderRadius:"8px"}},p.category),
-                  h("span",{style:{fontSize:"9px",color:"#94a3b8"}},"£"+p.price),
-                  h("span",{style:{fontSize:"9px",color:margin>=30?"#22c55e":margin>=20?"#f59e0b":"#ef4444",fontWeight:600}},margin+"% margin")
+                  h("span",{style:{fontSize:"9px",color:"#94a3b8"}},"~£"+p.price)
                 )
               ),
-              h("button",{style:{background:"#2e86de",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"6px 10px",borderRadius:"4px",cursor:"pointer",flexShrink:0},onClick:()=>productToScore(p,s)},"Score >")
+              h("button",{style:{background:"#ff004f",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"6px 10px",borderRadius:"4px",cursor:"pointer",flexShrink:0},onClick:()=>logPromotion(p,s,"tiktok-shop")},"★ Promote")
             ));
-            // Real product search links — horizontal scrolling row
+            // Affiliate platform search links
             const linkRow=h("div",{style:{padding:"0 10px 8px",display:"flex",gap:"4px",flexWrap:"wrap"}});
-            linkRow.appendChild(h("div",{style:{fontSize:"8px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",width:"100%",marginBottom:"3px"}},"Find real product:"));
+            linkRow.appendChild(h("div",{style:{fontSize:"8px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",width:"100%",marginBottom:"3px"}},"Find live product:"));
             searches.forEach(l=>{
-              linkRow.appendChild(h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer",title:l.desc,style:{display:"inline-block",padding:"3px 8px",background:"rgba(46,134,222,.08)",color:"#93c5fd",fontSize:"10px",fontWeight:600,borderRadius:"3px",textDecoration:"none",border:"1px solid rgba(46,134,222,.15)"}},l.label+" ↗"));
+              const isPrimary=l.primary;
+              linkRow.appendChild(h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer",title:l.desc,style:{display:"inline-block",padding:"3px 8px",background:isPrimary?"rgba(255,0,79,.12)":"rgba(46,134,222,.08)",color:isPrimary?"#ff6b94":"#93c5fd",fontSize:"10px",fontWeight:600,borderRadius:"3px",textDecoration:"none",border:"1px solid "+(isPrimary?"rgba(255,0,79,.25)":"rgba(46,134,222,.15)")}},l.label+" ↗"));
             });
             prodCard.appendChild(linkRow);
             pWrap.appendChild(prodCard);
@@ -608,7 +631,75 @@ function render(){
     if(hot.length>0)main.appendChild(sec("Saved Signals ("+hot.length+" hot)",div=>{hot.forEach(s=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"6px",padding:"7px 9px",background:"rgba(34,197,94,.06)",borderLeft:"3px solid #22c55e",borderRadius:"6px",marginBottom:"5px"}},h("div",{style:{flex:"1"}},h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"12px"}},s.keyword),h("div",{style:{fontSize:"9px",color:"#64748b"}},s.source+" - "+fmtDT(s.ts))),h("div",{style:{fontWeight:800,fontSize:"15px",color:"#22c55e"}},String(s.velocity)),h("button",{style:{background:"#2e86de",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"3px 7px",borderRadius:"4px",cursor:"pointer"},onClick:()=>{st.df.name=s.keyword;st.df.category=s.category||CATS[0];S({tab:"score"})}},"Score >"),h("button",{style:{background:"none",border:"none",color:"#475569",cursor:"pointer"},onClick:()=>delSignal(s.id)},"x")))})}));
   }
 
-  // ═══ SCORE ═══
+  // ═══ PROMOS ═══ (primary tab for affiliate model)
+  if(tab==="promos"){
+    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Promotions"));
+    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Products you've chosen to promote on TikTok/IG. Track clicks, sales, commission."));
+
+    // Summary stats
+    const activePromos=st.promos.filter(p=>p.status!=="dud");
+    const totalCommission=activePromos.reduce((a,p)=>a+(Number(p.commission)||0),0);
+    const totalSales=activePromos.reduce((a,p)=>a+(Number(p.sales)||0),0);
+    const totalClicks=activePromos.reduce((a,p)=>a+(Number(p.clicks)||0),0);
+    const convRate=totalClicks>0?(totalSales/totalClicks*100).toFixed(1):"0";
+    const mg=h("div",{className:"g3",style:{marginBottom:"14px"}});
+    mg.appendChild(met("Commission (all)","£"+totalCommission.toFixed(0),"#22c55e"));
+    mg.appendChild(met("Sales",String(totalSales),"#2e86de"));
+    mg.appendChild(met("CVR",convRate+"%",totalClicks>50?(parseFloat(convRate)>=1?"#22c55e":"#f59e0b"):"#64748b"));
+    main.appendChild(mg);
+
+    // Affiliate setup reminder
+    if(!cfg.amazonTag&&!cfg.tiktokShopApproved){
+      main.appendChild(h("div",{style:{padding:"10px 12px",background:"rgba(245,158,11,.08)",borderLeft:"3px solid #f59e0b",borderRadius:"5px",marginBottom:"14px",fontSize:"10px",color:"#94a3b8",lineHeight:"1.5"}},
+        h("div",{style:{color:"#f59e0b",fontWeight:700,marginBottom:"3px"}},"Set up your affiliate accounts"),
+        h("span",null,"1. Apply to TikTok Shop Affiliate (Settings → Creator Tools in TikTok app). 2. Sign up for Amazon Associates UK at affiliate-program.amazon.co.uk — instant approval. 3. Add your Amazon tag in the Settings panel (gear icon). Commissions track automatically once configured.")
+      ));
+    }
+
+    // Active promos
+    if(st.promos.length===0){
+      main.appendChild(h("div",{style:{textAlign:"center",padding:"24px",color:"#475569",fontSize:"13px",border:"1px dashed #334155",borderRadius:"8px"}},"No promotions yet. Scan the Radar and tap ★ Promote on a product."));
+    }else{
+      st.promos.forEach(p=>{
+        const age=daysAgo(p.ts);
+        const cvr=(Number(p.clicks)||0)>0?((Number(p.sales)||0)/p.clicks*100).toFixed(1):"—";
+        const sCol={posted:"#2e86de","pending-sale":"#f59e0b",earned:"#22c55e",dud:"#64748b"}[p.status]||"#64748b";
+        const card=h("div",{style:{background:"rgba(255,255,255,.03)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid "+sCol,border:"1px solid rgba(255,255,255,.06)"}});
+        card.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
+          h("div",{style:{flex:"1",minWidth:0}},
+            h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"13px"}},p.productName),
+            h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"1px"}},p.platform.replace("-"," ").toUpperCase()+" · "+p.category+" · Day "+age),
+            p.moment?h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"2px",fontStyle:"italic"}},"Moment: "+p.moment.slice(0,80)):null
+          ),
+          h("span",{style:{fontSize:"9px",background:sCol+"22",color:sCol,padding:"2px 8px",borderRadius:"10px",fontWeight:700,textTransform:"uppercase",flexShrink:0,marginLeft:"8px"}},p.status)
+        ));
+        // Tracking inputs
+        const tg=h("div",{className:"g4",style:{marginTop:"8px"}});
+        [{l:"Clicks",k:"clicks",c:"#2e86de"},{l:"Sales",k:"sales",c:"#f59e0b"},{l:"Commission £",k:"commission",c:"#22c55e"},{l:"Ad Spend £",k:"adSpend",c:"#ef4444"}].forEach(f=>{
+          const col=h("div",null,h("div",{style:{fontSize:"8px",color:"#64748b"}},f.l));
+          col.appendChild(h("input",{type:"number",value:String(p[f.k]||""),style:{width:"100%",padding:"4px 5px",borderRadius:"4px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:f.c,fontWeight:700,fontSize:"12px",boxSizing:"border-box"},onInput:e=>updPromo(p.id,{[f.k]:+e.target.value||0})}));
+          tg.appendChild(col);
+        });
+        card.appendChild(tg);
+        // Video URL input
+        const vidRow=h("div",{style:{marginTop:"6px"}});
+        vidRow.appendChild(h("input",{type:"text",placeholder:"TikTok/IG video URL (optional)",value:p.videoUrl||"",style:{width:"100%",padding:"5px 8px",borderRadius:"4px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:"#93c5fd",fontSize:"10px",boxSizing:"border-box"},onInput:e=>updPromo(p.id,{videoUrl:e.target.value})}));
+        card.appendChild(vidRow);
+        // Footer: CVR + status buttons
+        card.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"8px"}},
+          h("span",{style:{fontSize:"10px",color:"#94a3b8"},innerHTML:"CVR: <b style='color:"+(cvr!=="—"&&parseFloat(cvr)>=1?"#22c55e":"#f59e0b")+"'>"+cvr+"%</b>"}),
+          h("div",{style:{display:"flex",gap:"4px"}},
+            h("button",{style:{background:"none",border:"1px solid #22c55e",color:"#22c55e",fontSize:"9px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>updPromo(p.id,{status:"earned"})},"Earned"),
+            h("button",{style:{background:"none",border:"1px solid #64748b",color:"#94a3b8",fontSize:"9px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>updPromo(p.id,{status:"dud"})},"Dud"),
+            h("button",{style:{background:"none",border:"1px solid #ef4444",color:"#ef4444",fontSize:"9px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>{if(confirm("Delete this promotion?"))delPromo(p.id)}},"Del")
+          )
+        ));
+        main.appendChild(card);
+      });
+    }
+  }
+
+  // ═══ SCORE ═══ (reachable via old flow, for POD drops - kept as fallback)
   if(tab==="score"){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Score a Drop"));
     main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"0-2 each. 6+ ships. 8+ fast-tracks."));
@@ -658,7 +749,7 @@ function render(){
     const ig=h("div",{className:"g4",style:{marginTop:"8px"}});[{l:"Revenue",k:"revenue",c:"#22c55e"},{l:"Orders",k:"orders",c:"#e2e8f0"},{l:"Ad Spend",k:"adSpend",c:"#f59e0b"},{l:"Returns",k:"returns",c:"#ef4444"}].forEach(f=>{const col=h("div",null,h("div",{style:{fontSize:"8px",color:"#64748b"}},f.l),h("input",{type:"number",value:String(d[f.k]||""),style:{width:"100%",padding:"4px 5px",borderRadius:"4px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:f.c,fontWeight:700,fontSize:"12px",boxSizing:"border-box"},onInput:e=>updDrop(d.id,{[f.k]:+e.target.value||0})}));ig.appendChild(col)});c.appendChild(ig);
     c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"6px"}},h("span",{style:{fontSize:"10px",color:"#94a3b8"},innerHTML:"Margin: <b style='color:"+(mgn>=20?"#22c55e":"#ef4444")+"'>"+mgn+"%</b>"}),h("span",{style:{fontSize:"10px",color:"#94a3b8"},innerHTML:"ROAS: <b style='color:"+(roas!=="--"&&parseFloat(roas)>=3?"#22c55e":"#f59e0b")+"'>"+roas+"</b>"}),h("div",{style:{display:"flex",gap:"5px"}},h("button",{style:{background:"none",border:"1px solid #ef4444",color:"#ef4444",fontSize:"9px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"killed"})},"Kill"),h("button",{style:{background:"none",border:"1px solid #22c55e",color:"#22c55e",fontSize:"9px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"completed"})},"Done"))));main.appendChild(c)});
     if(!active.length)main.appendChild(h("div",{style:{textAlign:"center",padding:"24px",color:"#475569",fontSize:"13px"}},"Score a drop to get started"));
-    const past=drops.filter(d=>d.status!=="active");if(past.length)main.appendChild(sec("Past Drops",div=>{past.slice(0,15).forEach(d=>{div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"5px 8px",borderLeft:"2px solid "+(d.status==="killed"?"#ef4444":"#475569"),marginBottom:"3px",borderRadius:"3px"}},h("span",{style:{fontSize:"11px",color:"#94a3b8"}},d.name),h("span",{style:{fontSize:"11px",color:"#22c55e",fontWeight:700}},"L"+(d.revenue||0))))})},true));
+    const past=drops.filter(d=>d.status!=="active");if(past.length)main.appendChild(sec("Past Drops",div=>{past.slice(0,15).forEach(d=>{div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"5px 8px",borderLeft:"2px solid "+(d.status==="killed"?"#ef4444":"#475569"),marginBottom:"3px",borderRadius:"3px"}},h("span",{style:{fontSize:"11px",color:"#94a3b8"}},d.name),h("span",{style:{fontSize:"11px",color:"#22c55e",fontWeight:700}},"£"+(d.revenue||0))))})},true));
   }
 
   // ═══ CONTENT ═══
@@ -675,18 +766,45 @@ function render(){
   // ═══ P+L ═══
   if(tab==="money"){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"P+L"));
-    const g1=h("div",{className:"g2",style:{marginBottom:"10px"}});g1.appendChild(met("Week Rev","L"+wRev,"#22c55e"));g1.appendChild(met("Week Profit","L"+wProf,wProf>=0?"#22c55e":"#ef4444"));g1.appendChild(met("Month Rev","L"+mRev,"#2e86de"));g1.appendChild(met("Month Profit","L"+mProf,mProf>=0?"#22c55e":"#ef4444"));main.appendChild(g1);
-    const g2=h("div",{className:"g3",style:{marginBottom:"14px"}});g2.appendChild(met("Orders",String(wOrd)));g2.appendChild(met("Ad Spend","L"+wAd,"#f59e0b"));g2.appendChild(met("COGS","L"+wCOGS,"#94a3b8"));main.appendChild(g2);
-    main.appendChild(sec("Target: L10,000/mo",div=>{const b=h("div",{className:"p"});b.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:"4px"}},h("span",{style:{fontSize:"11px",color:"#94a3b8"}},"Progress"),h("span",{style:{fontSize:"11px",fontWeight:700,color:"#e2e8f0"}},"L"+mRev+" / L10k")));b.appendChild(h("div",{style:{height:"6px",background:"#1e293b",borderRadius:"3px",overflow:"hidden"}},h("div",{style:{width:Math.min(100,mRev/100)+"%",height:"100%",background:mRev>=10000?"#22c55e":"#2e86de",borderRadius:"3px"}})));div.appendChild(b)}));
-    if(wk.length)main.appendChild(sec("By Drop (week)",div=>{[...wk].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).forEach((d,i)=>{const p=(d.revenue||0)-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0),m=d.revenue>0?Math.round(p/d.revenue*100):0;div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"6px 8px",background:i===0?"rgba(34,197,94,.06)":"transparent",borderRadius:"5px",marginBottom:"3px"}},h("span",{style:{fontSize:"11px",color:"#e2e8f0"}},d.name),h("span",{innerHTML:"<span style='color:#22c55e;font-weight:700'>L"+(d.revenue||0)+"</span> <span style='font-size:9px;color:"+(m>=0?"#22c55e":"#ef4444")+"'>("+m+"%)</span>"})))})}));
-    main.appendChild(sec("Weekly Review",div=>{const b=h("div",{className:"p"});[{q:"What worked?",h:"Top drop, format, platform"},{q:"What failed?",h:"Wrong product, moment, content?"},{q:"What changes?",h:"One specific change"}].forEach((item,i)=>{const d2=h("div",{style:{marginBottom:i<2?"10px":"0"}});d2.appendChild(h("div",{style:{fontSize:"11px",fontWeight:600,color:"#2e86de"}},item.q));d2.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginBottom:"3px"}},item.h));d2.appendChild(h("textarea",{rows:"2",placeholder:"Write...",style:{width:"100%",padding:"6px 8px",borderRadius:"5px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:"#e2e8f0",fontSize:"10px",fontFamily:"'DM Sans'",resize:"vertical",boxSizing:"border-box"}}));b.appendChild(d2)});div.appendChild(b)}));
+    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Combined affiliate commissions + POD drop revenue."));
+    const g1=h("div",{className:"g2",style:{marginBottom:"10px"}});g1.appendChild(met("Week Rev","£"+wRev.toFixed(0),"#22c55e"));g1.appendChild(met("Week Profit","£"+wProf.toFixed(0),wProf>=0?"#22c55e":"#ef4444"));g1.appendChild(met("Month Rev","£"+mRev.toFixed(0),"#2e86de"));g1.appendChild(met("Month Profit","£"+mProf.toFixed(0),mProf>=0?"#22c55e":"#ef4444"));main.appendChild(g1);
+    // Revenue breakdown: affiliate vs drops
+    const wDropRev=wRev-wCommission;
+    const mDropRev=mRev-mCommission;
+    if(wCommission>0||wDropRev>0){
+      main.appendChild(sec("Revenue Mix (Week)",div=>{
+        const bar=h("div",{style:{display:"flex",gap:"2px",height:"24px",borderRadius:"5px",overflow:"hidden",marginBottom:"6px"}});
+        const affPct=wRev>0?(wCommission/wRev*100):0;
+        if(wCommission>0)bar.appendChild(h("div",{style:{width:affPct+"%",background:"#ff004f",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",fontWeight:700,color:"#fff"}},affPct>15?"Affiliate":""));
+        if(wDropRev>0)bar.appendChild(h("div",{style:{width:(100-affPct)+"%",background:"#22c55e",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",fontWeight:700,color:"#fff"}},(100-affPct)>15?"Drops":""));
+        div.appendChild(bar);
+        div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:"10px",color:"#94a3b8"}},
+          h("span",null,"Affiliate: £"+wCommission.toFixed(0)+" ("+affPct.toFixed(0)+"%)"),
+          h("span",null,"Drops: £"+wDropRev.toFixed(0)+" ("+(100-affPct).toFixed(0)+"%)")
+        ));
+      }));
+    }
+    const g2=h("div",{className:"g3",style:{marginBottom:"14px"}});g2.appendChild(met("Orders/Sales",String(wOrd)));g2.appendChild(met("Ad Spend","£"+wAd.toFixed(0),"#f59e0b"));g2.appendChild(met("COGS","£"+wCOGS.toFixed(0),"#94a3b8"));main.appendChild(g2);
+    main.appendChild(sec("Target: £10,000/mo",div=>{const b=h("div",{className:"p"});b.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:"4px"}},h("span",{style:{fontSize:"11px",color:"#94a3b8"}},"Progress"),h("span",{style:{fontSize:"11px",fontWeight:700,color:"#e2e8f0"}},"£"+mRev.toFixed(0)+" / £10k")));b.appendChild(h("div",{style:{height:"6px",background:"#1e293b",borderRadius:"3px",overflow:"hidden"}},h("div",{style:{width:Math.min(100,mRev/100)+"%",height:"100%",background:mRev>=10000?"#22c55e":"#2e86de",borderRadius:"3px"}})));div.appendChild(b)}));
+    // Top promos (affiliate)
+    if(wkPromos.length){
+      main.appendChild(sec("Top Promos (week)",div=>{[...wkPromos].sort((a,b)=>(Number(b.commission)||0)-(Number(a.commission)||0)).slice(0,8).forEach((p,i)=>{
+        const cvr=(Number(p.clicks)||0)>0?((Number(p.sales)||0)/p.clicks*100).toFixed(1):"—";
+        div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"6px 8px",background:i===0?"rgba(255,0,79,.06)":"transparent",borderRadius:"5px",marginBottom:"3px"}},
+          h("span",{style:{fontSize:"11px",color:"#e2e8f0",flex:"1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},p.productName),
+          h("span",{innerHTML:"<span style='color:#ff6b94;font-weight:700'>£"+(Number(p.commission)||0).toFixed(0)+"</span> <span style='font-size:9px;color:#64748b'>CVR "+cvr+"%</span>"})
+        ));
+      })}));
+    }
+    if(wk.length)main.appendChild(sec("Top Drops (week)",div=>{[...wk].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).forEach((d,i)=>{const p=(d.revenue||0)-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0),m=d.revenue>0?Math.round(p/d.revenue*100):0;div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"6px 8px",background:i===0?"rgba(34,197,94,.06)":"transparent",borderRadius:"5px",marginBottom:"3px"}},h("span",{style:{fontSize:"11px",color:"#e2e8f0"}},d.name),h("span",{innerHTML:"<span style='color:#22c55e;font-weight:700'>£"+(d.revenue||0)+"</span> <span style='font-size:9px;color:"+(m>=0?"#22c55e":"#ef4444")+"'>("+m+"%)</span>"})))})}));
+    main.appendChild(sec("Weekly Review",div=>{const b=h("div",{className:"p"});[{q:"What worked?",h:"Top promo, moment, platform"},{q:"What failed?",h:"Wrong product or timing?"},{q:"What changes?",h:"One specific change"}].forEach((item,i)=>{const d2=h("div",{style:{marginBottom:i<2?"10px":"0"}});d2.appendChild(h("div",{style:{fontSize:"11px",fontWeight:600,color:"#2e86de"}},item.q));d2.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginBottom:"3px"}},item.h));d2.appendChild(h("textarea",{rows:"2",placeholder:"Write...",style:{width:"100%",padding:"6px 8px",borderRadius:"5px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:"#e2e8f0",fontSize:"10px",fontFamily:"'DM Sans'",resize:"vertical",boxSizing:"border-box"}}));b.appendChild(d2)});div.appendChild(b)}));
   }
 
   // ═══ HUB ═══
   if(tab==="hub"){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Command Hub"));
-    [["Shopify",links.shopify],["Social + Ads",links.social],["Supply + Email",links.tools],["Research",links.research]].forEach(([t,items])=>{main.appendChild(sec(t,div=>{const g=h("div",{className:"g2"});items.forEach(l=>g.appendChild(lnk(l)));div.appendChild(g)}))});
-    main.appendChild(sec("The Loop",div=>{const b=h("div",{className:"p"});[{s:"1",l:"SCAN",d:"Trend sources > log signals",c:"#2e86de"},{s:"2",l:"SCORE",d:"Score /10. Ship if 6+.",c:"#22c55e"},{s:"3",l:"SHIP",d:"Shopify listing. IG + TikTok blitz.",c:"#f59e0b"},{s:"4",l:"LEARN",d:"Sunday review. Rank by revenue.",c:"#94a3b8"}].forEach(x=>{b.appendChild(h("div",{style:{display:"flex",gap:"8px",alignItems:"flex-start",marginBottom:"8px"}},h("div",{style:{width:"24px",height:"24px",borderRadius:"50%",background:x.c+"22",border:"2px solid "+x.c,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"11px",color:x.c,flexShrink:0}},x.s),h("div",null,h("div",{style:{fontWeight:700,color:x.c,fontSize:"11px"}},x.l),h("div",{style:{fontSize:"10px",color:"#94a3b8"}},x.d))))});div.appendChild(b)}));
+    [["Affiliate Networks",links.affiliate],["Shopify",links.shopify],["Social + Ads",links.social],["Supply + Email",links.tools],["Research",links.research]].forEach(([t,items])=>{main.appendChild(sec(t,div=>{const g=h("div",{className:"g2"});items.forEach(l=>g.appendChild(lnk(l)));div.appendChild(g)}))});
+    main.appendChild(sec("The Loop (Affiliate Model)",div=>{const b=h("div",{className:"p"});[{s:"1",l:"SCAN",d:"Radar finds hot football moments",c:"#2e86de"},{s:"2",l:"MATCH",d:"LLM suggests real products. Check live on TikTok Shop/Amazon.",c:"#ff004f"},{s:"3",l:"POST",d:"Tag product in TikTok video. Use Amazon affiliate link in bio.",c:"#f59e0b"},{s:"4",l:"LOG",d:"Promos tab tracks clicks, sales, commission.",c:"#22c55e"},{s:"5",l:"LEARN",d:"Sunday review. Double down on top converters.",c:"#94a3b8"}].forEach(x=>{b.appendChild(h("div",{style:{display:"flex",gap:"8px",alignItems:"flex-start",marginBottom:"8px"}},h("div",{style:{width:"24px",height:"24px",borderRadius:"50%",background:x.c+"22",border:"2px solid "+x.c,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"11px",color:x.c,flexShrink:0}},x.s),h("div",null,h("div",{style:{fontWeight:700,color:x.c,fontSize:"11px"}},x.l),h("div",{style:{fontSize:"10px",color:"#94a3b8"}},x.d))))});div.appendChild(b)}));
   }
 
   frag.appendChild(main);
