@@ -88,7 +88,7 @@ let st={
   pf:{platform:PLATS[0],caption:"",dropId:""},
   utm:{source:"instagram",medium:"bio",campaign:""},
   autoSignals:JSON.parse(localStorage.getItem("bpn-auto")||"[]"),
-  scanning:false, lastScan:+(localStorage.getItem("bpn-ls")||0),
+  scanning:false, lastScan:+(localStorage.getItem("bpn-ls")||0), lastLLMError:"",
   authErr:"", authMode:"login", showSetup:false,
   teamInput:"", teamNameInput:"",
 };
@@ -199,31 +199,43 @@ Return ONLY valid JSON in this exact format, no markdown, no commentary:
 async function suggestProducts(headline){
   const key=getLLMKey();
   const provider=getLLMProvider();
-  if(!key)return null;
+  if(!key){st.lastLLMError="No API key set";return null}
   try{
     let url, body, headers;
     if(provider==="groq"){
       url="https://api.groq.com/openai/v1/chat/completions";
       headers={"Content-Type":"application/json","Authorization":"Bearer "+key};
-      body=JSON.stringify({model:"llama-3.3-70b-versatile",messages:[{role:"system",content:LLM_PROMPT},{role:"user",content:headline}],temperature:0.7,max_tokens:400,response_format:{type:"json_object"}});
+      body=JSON.stringify({model:"llama-3.1-8b-instant",messages:[{role:"system",content:LLM_PROMPT},{role:"user",content:headline}],temperature:0.7,max_tokens:600,response_format:{type:"json_object"}});
     } else if(provider==="openai"){
       url="https://api.openai.com/v1/chat/completions";
       headers={"Content-Type":"application/json","Authorization":"Bearer "+key};
-      body=JSON.stringify({model:"gpt-4o-mini",messages:[{role:"system",content:LLM_PROMPT},{role:"user",content:headline}],temperature:0.7,max_tokens:400,response_format:{type:"json_object"}});
+      body=JSON.stringify({model:"gpt-4o-mini",messages:[{role:"system",content:LLM_PROMPT},{role:"user",content:headline}],temperature:0.7,max_tokens:600,response_format:{type:"json_object"}});
     } else if(provider==="anthropic"){
       url="https://api.anthropic.com/v1/messages";
       headers={"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"};
-      body=JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:400,system:LLM_PROMPT,messages:[{role:"user",content:headline}]});
+      body=JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:600,system:LLM_PROMPT,messages:[{role:"user",content:headline}]});
+    } else {
+      st.lastLLMError="Unknown provider: "+provider;
+      return null;
     }
     const r=await fetch(url,{method:"POST",headers,body});
-    if(!r.ok){console.error("LLM error",r.status,await r.text());return null}
+    if(!r.ok){
+      const errText=await r.text();
+      st.lastLLMError=provider+" "+r.status+": "+errText.slice(0,200);
+      console.error("LLM error",r.status,errText);
+      return null;
+    }
     const data=await r.json();
     const txt=provider==="anthropic"?data.content[0].text:data.choices[0].message.content;
-    // Strip markdown fences if present
     const cleaned=txt.replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
     const parsed=JSON.parse(cleaned);
+    st.lastLLMError="";
     return parsed.products||null;
-  }catch(e){console.error("Suggest error:",e);return null}
+  }catch(e){
+    st.lastLLMError=provider+" fail: "+e.message;
+    console.error("Suggest error:",e);
+    return null;
+  }
 }
 
 async function fetchReddit(sub,limit=15){
@@ -564,6 +576,14 @@ function render(){
     main.appendChild(sr);
     if(!getLLMKey())main.appendChild(h("div",{style:{fontSize:"10px",color:"#f59e0b",marginBottom:"10px",padding:"6px 10px",background:"rgba(245,158,11,.08)",borderRadius:"5px"}},"Tip: Add a free Groq API key in Settings (*) to auto-generate product ideas."));
     else main.appendChild(h("div",{style:{height:"6px"}}));
+    // Show LLM error banner if suggest calls failed
+    if(st.lastLLMError){
+      main.appendChild(h("div",{style:{fontSize:"10px",color:"#ef4444",marginBottom:"10px",padding:"8px 10px",background:"rgba(239,68,68,.08)",borderLeft:"3px solid #ef4444",borderRadius:"5px",lineHeight:"1.5"}},
+        h("div",{style:{fontWeight:700,marginBottom:"3px"}},"AI suggestion error:"),
+        h("div",{style:{color:"#fca5a5",fontSize:"9px",fontFamily:"'Space Mono',monospace",wordBreak:"break-word"}},st.lastLLMError),
+        h("div",{style:{marginTop:"4px",color:"#64748b",fontSize:"9px"}},"Signals still saved. Fix the error and scan again, or tap 'Score manually'.")
+      ));
+    }
 
     // Auto signals
     const hotA=autoSignals.filter(s=>s.velocity>=6);
