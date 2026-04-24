@@ -244,31 +244,46 @@ async function fetchReddit(sub,limit=15){
 function guessCat(t){t=t.toLowerCase();if(/kit|jersey|shirt|wear/.test(t))return"Apparel";if(/poster|art|print|photo/.test(t))return"Art/Prints";if(/scarf|hat|flag|badge/.test(t))return"Accessories";return""}
 
 async function scanNow(){
-  S({scanning:true,scanProgress:""});
+  S({scanning:true,scanProgress:"Fetching Reddit..."});
   try{
+    // Step 1: Fetch Reddit (parallel, 3 subs)
     const[a,b,c]=await Promise.all([fetchReddit("soccer",15),fetchReddit("PremierLeague",10),fetchReddit("EFL",8)]);
     const all=[...a,...b,...c];
     const seen=new Set();
     const dd=all.filter(s=>{const k=s.keyword.toLowerCase().slice(0,30);if(seen.has(k))return false;seen.add(k);return true});
     dd.sort((a,b)=>b.velocity-a.velocity);
     let autoSignals=dd.slice(0,20);
-    S({autoSignals,scanProgress:"Generating product ideas..."});
-    // LLM enrichment for top signals (velocity 6+)
-    if(getLLMKey()){
-      const topSignals=autoSignals.filter(s=>s.velocity>=6).slice(0,8);
-      for(let i=0;i<topSignals.length;i++){
-        S({scanProgress:"Ideas "+(i+1)+"/"+topSignals.length+"..."});
-        const products=await suggestProducts(topSignals[i].fullTitle||topSignals[i].keyword);
-        if(products){const idx=autoSignals.findIndex(s=>s.id===topSignals[i].id);if(idx>=0)autoSignals[idx].products=products}
-        await new Promise(r=>setTimeout(r,250)); // rate limit safety
-        localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
-        S({autoSignals});
-      }
-    }
+    // Show signals immediately - users see trending topics right away
     const lastScan=Date.now();
     localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
     localStorage.setItem("bpn-ls",String(lastScan));
-    S({autoSignals,scanning:false,lastScan,scanProgress:""})
+    S({autoSignals,lastScan,scanProgress:"Generating product ideas..."});
+
+    // Step 2: LLM enrichment in PARALLEL (not sequential)
+    if(getLLMKey()){
+      const topSignals=autoSignals.filter(s=>s.velocity>=6).slice(0,5);
+      if(topSignals.length>0){
+        S({scanProgress:"Ideas 0/"+topSignals.length+"..."});
+        let done=0;
+        // Fire all LLM calls in parallel
+        const promises=topSignals.map(async sig=>{
+          const products=await suggestProducts(sig.fullTitle||sig.keyword);
+          done++;
+          S({scanProgress:"Ideas "+done+"/"+topSignals.length+"..."});
+          return{sigId:sig.id,products};
+        });
+        const results=await Promise.all(promises);
+        // Apply all results at once
+        results.forEach(({sigId,products})=>{
+          if(products){
+            const idx=autoSignals.findIndex(s=>s.id===sigId);
+            if(idx>=0)autoSignals[idx].products=products;
+          }
+        });
+        localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
+      }
+    }
+    S({autoSignals,scanning:false,scanProgress:""});
   }catch(e){console.error(e);S({scanning:false,scanProgress:""})}
 }
 
