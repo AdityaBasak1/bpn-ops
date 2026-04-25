@@ -442,6 +442,122 @@ async function delPromo(id){
   S({promos});
 }
 
+// ─── TikTok Affiliate CSV Import ───
+// TikTok Affiliate Center > Reports > Performance lets creators export CSV.
+// Common columns: "Product Name", "Clicks", "Orders", "Estimated Commission", "Video URL" / "Video ID"
+// Column names vary by TikTok region/dashboard — we match flexibly.
+function parseCSV(text){
+  const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim());
+  if(lines.length<2)return{headers:[],rows:[]};
+  // Naive but tolerant CSV parser - handles quoted fields with commas
+  const parseLine=(line)=>{
+    const out=[];let cur="";let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++}else inQ=!inQ}
+      else if(ch===','&&!inQ){out.push(cur);cur=""}
+      else cur+=ch;
+    }
+    out.push(cur);
+    return out.map(s=>s.trim());
+  };
+  const headers=parseLine(lines[0]).map(h=>h.toLowerCase());
+  const rows=lines.slice(1).map(l=>{
+    const fields=parseLine(l);
+    const row={};
+    headers.forEach((h,i)=>{row[h]=fields[i]||""});
+    return row;
+  });
+  return{headers,rows};
+}
+
+// Find first matching column from a list of candidates
+function findCol(row,candidates){
+  for(const c of candidates){
+    for(const k of Object.keys(row)){
+      if(k.includes(c))return row[k];
+    }
+  }
+  return"";
+}
+
+function parseNum(v){
+  if(v==null)return 0;
+  const s=String(v).replace(/[£$€,]/g,"").trim();
+  const n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
+
+async function importTikTokCSV(file){
+  try{
+    const text=await file.text();
+    const{rows}=parseCSV(text);
+    if(rows.length===0){alert("CSV looks empty");return}
+    let matched=0,created=0,skipped=0;
+    const promos=[...st.promos];
+
+    for(const row of rows){
+      const productName=findCol(row,["product name","product","item name","item"]).trim();
+      if(!productName)continue;
+      const clicks=parseNum(findCol(row,["clicks","click"]));
+      const orders=parseNum(findCol(row,["orders","sold","sales count","sale count"]));
+      const commission=parseNum(findCol(row,["estimated commission","commission","payout","earnings","earned"]));
+      const sales=parseNum(findCol(row,["sales","revenue","gmv","sales amount"]));
+      const videoUrl=findCol(row,["video url","video link","tiktok url","content url"]).trim();
+      const videoId=findCol(row,["video id","content id"]).trim();
+
+      // Try fuzzy match against existing promos by product name (first 25 chars, case-insensitive)
+      const key=productName.toLowerCase().slice(0,25);
+      const existing=promos.find(p=>{
+        const pName=(p.productName||"").toLowerCase();
+        return pName.slice(0,25)===key||pName.includes(key)||key.includes(pName.slice(0,15));
+      });
+
+      if(existing){
+        // Update existing — take max of CSV vs existing (CSV is usually more recent and accurate)
+        existing.clicks=Math.max(Number(existing.clicks)||0,clicks);
+        existing.sales=Math.max(Number(existing.sales)||0,orders||sales);
+        existing.commission=Math.max(Number(existing.commission)||0,commission);
+        if(videoUrl&&!existing.videoUrl)existing.videoUrl=videoUrl;
+        if(videoId&&!existing.videoUrl)existing.videoUrl="https://www.tiktok.com/video/"+videoId;
+        // Auto-update status based on data
+        if(orders>0||sales>0||commission>0)existing.status="earned";
+        else if(clicks>20)existing.status="pending-sale";
+        existing.lastSync=Date.now();
+        await dbUpdate("promo",existing);
+        matched++;
+      }else if(productName&&(clicks>0||orders>0||commission>0)){
+        // Create new entry from CSV row
+        const newPromo={
+          id:uid(),
+          productName,
+          searchQuery:productName,
+          category:"Other",
+          platform:"tiktok-shop",
+          moment:"Imported from TikTok CSV",
+          momentSource:"TikTok Affiliate (CSV)",
+          velocity:0,
+          status:(orders>0||commission>0)?"earned":(clicks>20?"pending-sale":"posted"),
+          clicks,sales:orders||sales,commission,adSpend:0,
+          videoUrl:videoUrl||(videoId?"https://www.tiktok.com/video/"+videoId:""),
+          notes:"Auto-imported "+new Date().toLocaleDateString(),
+          ts:Date.now(),
+          lastSync:Date.now(),
+        };
+        promos.unshift(newPromo);
+        await dbInsert("promo",newPromo);
+        created++;
+      }else{
+        skipped++;
+      }
+    }
+
+    localStorage.setItem("bpn-tt-sync",String(Date.now()));
+    S({promos,lastTikTokSync:Date.now()});
+    alert(`TikTok import complete:\n${matched} updated, ${created} new, ${skipped} skipped (no activity)`);
+  }catch(e){alert("CSV import error: "+e.message);console.error(e)}
+}
+
 // ─── DOM helpers ───
 function h(tag,attrs,...ch){const el=document.createElement(tag);if(attrs)Object.entries(attrs).forEach(([k,v])=>{if(k==="style"&&typeof v==="object")Object.assign(el.style,v);else if(k.startsWith("on"))el.addEventListener(k.slice(2).toLowerCase(),v);else if(k==="className")el.className=v;else if(k==="innerHTML")el.innerHTML=v;else if(["value","placeholder","type","rows","min","max","href","target","rel","disabled","checked"].includes(k))el[k]=v;else el.setAttribute(k,v)});ch.flat(9).forEach(c=>{if(c!=null&&c!==false)el.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(String(c)):c)});return el}
 function lnk(item){return h("a",{href:item.url,target:"_blank",rel:"noopener noreferrer",className:"lc"},h("div",{style:{fontSize:"12px",fontWeight:600,color:"#93c5fd"}},item.label+" >"),h("div",{style:{fontSize:"10px",color:"#64748b",marginTop:"1px"}},item.desc))}
@@ -737,7 +853,22 @@ function render(){
   // ═══ PROMOS ═══ (primary tab for affiliate model)
   if(tab==="promos"){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Promotions"));
-    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Products you've chosen to promote on TikTok/IG. Track clicks, sales, commission."));
+    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Track which products + videos are converting. Import CSV from TikTok Affiliate Center weekly."));
+
+    // CSV Import row
+    const lastSyncTs=+(localStorage.getItem("bpn-tt-sync")||0);
+    const syncMin=lastSyncTs>0?Math.round((Date.now()-lastSyncTs)/60000):null;
+    const importRow=h("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"12px"}});
+    const importLabel=h("label",{style:{flex:"1",display:"block",padding:"10px 12px",background:"#ff004f",color:"#fff",fontSize:"11px",fontWeight:700,borderRadius:"6px",textAlign:"center",cursor:"pointer",letterSpacing:"0.3px"}},"📥 Import TikTok Affiliate CSV");
+    const fileInput=h("input",{type:"file",accept:".csv,text/csv",style:{display:"none"},onChange:e=>{const f=e.target.files[0];if(f)importTikTokCSV(f);e.target.value=""}});
+    importLabel.appendChild(fileInput);
+    importRow.appendChild(importLabel);
+    if(syncMin!==null){
+      const syncTxt=syncMin<60?syncMin+"m ago":syncMin<1440?Math.round(syncMin/60)+"h ago":Math.round(syncMin/1440)+"d ago";
+      importRow.appendChild(h("span",{style:{fontSize:"9px",color:"#475569",whiteSpace:"nowrap"}},syncTxt));
+    }
+    main.appendChild(importRow);
+    main.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"-8px",marginBottom:"14px",lineHeight:"1.5"}},"How: TikTok Affiliate Center → Reports → Performance → Export CSV. Then tap above to import. App auto-matches products by name and updates clicks, sales, commission."));
 
     // Summary stats
     const activePromos=st.promos.filter(p=>p.status!=="dud");
@@ -750,6 +881,60 @@ function render(){
     mg.appendChild(met("Sales",String(totalSales),"#2e86de"));
     mg.appendChild(met("CVR",convRate+"%",totalClicks>50?(parseFloat(convRate)>=1?"#22c55e":"#f59e0b"):"#64748b"));
     main.appendChild(mg);
+
+    // ═══ INSIGHTS LAYER ═══
+    if(st.promos.length>=3){
+      // Top performers by commission
+      const winners=[...st.promos].filter(p=>(Number(p.commission)||0)>0).sort((a,b)=>(Number(b.commission)||0)-(Number(a.commission)||0)).slice(0,3);
+      // Failing: 30+ clicks but 0 sales
+      const losers=st.promos.filter(p=>(Number(p.clicks)||0)>=30&&(Number(p.sales)||0)===0&&p.status!=="dud").slice(0,3);
+      // Best categories by total commission
+      const catTotals={};
+      st.promos.forEach(p=>{
+        const c=p.category||"Other";
+        if(!catTotals[c])catTotals[c]={commission:0,clicks:0,sales:0,count:0};
+        catTotals[c].commission+=Number(p.commission)||0;
+        catTotals[c].clicks+=Number(p.clicks)||0;
+        catTotals[c].sales+=Number(p.sales)||0;
+        catTotals[c].count++;
+      });
+      const topCats=Object.entries(catTotals).filter(([k,v])=>v.commission>0).sort((a,b)=>b[1].commission-a[1].commission).slice(0,3);
+
+      if(winners.length>0||losers.length>0||topCats.length>0){
+        main.appendChild(h("div",{style:{padding:"10px 12px",background:"linear-gradient(135deg,rgba(46,134,222,.08),rgba(255,0,79,.05))",borderRadius:"8px",marginBottom:"14px",border:"1px solid rgba(46,134,222,.15)"}},
+          h("div",{style:{fontSize:"10px",fontWeight:800,color:"#93c5fd",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"10px"}},"📊 Insights"),
+          // Winners
+          winners.length>0?h("div",{style:{marginBottom:"10px"}},
+            h("div",{style:{fontSize:"10px",fontWeight:700,color:"#22c55e",marginBottom:"4px"}},"🏆 Top Performers"),
+            ...winners.map(p=>{
+              const cvr=(Number(p.clicks)||0)>0?((Number(p.sales)||0)/p.clicks*100).toFixed(1):"—";
+              return h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:"10px",padding:"3px 0",color:"#cbd5e1"}},
+                h("span",{style:{flex:"1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginRight:"8px"}},p.productName),
+                h("span",null,h("span",{style:{color:"#22c55e",fontWeight:700}},"£"+(Number(p.commission)||0).toFixed(0))," ",h("span",{style:{color:"#64748b",fontSize:"9px"}},"CVR "+cvr+"%"))
+              );
+            })
+          ):null,
+          // Losers
+          losers.length>0?h("div",{style:{marginBottom:"10px"}},
+            h("div",{style:{fontSize:"10px",fontWeight:700,color:"#ef4444",marginBottom:"4px"}},"💀 Failing (clicks but no sales)"),
+            ...losers.map(p=>h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:"10px",padding:"3px 0",color:"#cbd5e1"}},
+              h("span",{style:{flex:"1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginRight:"8px"}},p.productName),
+              h("span",{style:{color:"#ef4444",fontSize:"10px"}},(Number(p.clicks)||0)+" clicks · 0 sales")
+            )),
+            h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"4px",fontStyle:"italic"}},"Action: kill the link, swap product, or rewrite hook")
+          ):null,
+          // Best moment categories
+          topCats.length>0?h("div",null,
+            h("div",{style:{fontSize:"10px",fontWeight:700,color:"#f59e0b",marginBottom:"4px"}},"💡 Best Categories"),
+            ...topCats.map(([cat,data])=>h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:"10px",padding:"3px 0",color:"#cbd5e1"}},
+              h("span",null,cat+" ",h("span",{style:{color:"#64748b",fontSize:"9px"}},"("+data.count+" promo"+(data.count>1?"s":"")+")")),
+              h("span",{style:{color:"#f59e0b",fontWeight:700}},"£"+data.commission.toFixed(0))
+            )),
+            h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"4px",fontStyle:"italic"}},"Action: bias next picks toward winning categories")
+          ):null
+        ));
+      }
+    }
 
     // Affiliate setup reminder
     if(!cfg.amazonTag&&!cfg.tiktokShopApproved){
