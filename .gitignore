@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+# Editor
+.vscode/
+.idea/

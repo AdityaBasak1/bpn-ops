@@ -55,7 +55,7 @@ const SOURCES=["TikTok Creative Center","Google Trends","Reddit","Meta Ad Librar
 const CATS=["Apparel","Accessories","Collectibles","Books","Games","Home","Tech","Food","Fitness","Other"];
 const DIMS=[{key:"signal",label:"Signal Strength",desc:"How many sources confirm?"},{key:"audience",label:"Audience Fit",desc:"Does the podcast tribe want this?"},{key:"speed",label:"Production Speed",desc:"Live in under 24h?"},{key:"margin",label:"Margin Potential",desc:"Above 20% gross?"},{key:"halflife",label:"Moment Half-life",desc:"Days of relevance?"}];
 const PLATS=["IG Reel","IG Story","IG Carousel","TikTok","Podcast Clip","Email"];
-const TABS=[{id:"radar",icon:"R",label:"Radar"},{id:"promos",icon:"★",label:"Promos"},{id:"drops",icon:"D",label:"Drops"},{id:"content",icon:"C",label:"Content"},{id:"money",icon:"P",label:"P+L"},{id:"hub",icon:"H",label:"Hub"}];
+const TABS=[{id:"today",icon:"!",label:"Today"},{id:"radar",icon:"R",label:"Radar"},{id:"promos",icon:"★",label:"Promos"},{id:"drops",icon:"D",label:"Drops"},{id:"content",icon:"C",label:"Content"},{id:"money",icon:"P",label:"P+L"},{id:"hub",icon:"H",label:"Hub"}];
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function fmtD(ts){return new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
@@ -81,7 +81,7 @@ function buildUTM(base,src,med,camp){try{const u=new URL(base.startsWith("http")
 let st={
   screen:"loading", // loading, auth, team, app
   user:null, teamId:null, teamName:null,
-  tab:"radar", cfg:getCfg(),
+  tab:"today", cfg:getCfg(),
   signals:[], drops:[], posts:[], promos:[],
   sf:{keyword:"",source:SOURCES[0],velocity:5,notes:"",category:""},
   tsf:{name:"",url:"",category:"",price:25,note:""},
@@ -92,6 +92,8 @@ let st={
   scanning:false, lastScan:+(localStorage.getItem("bpn-ls")||0), lastLLMError:"",
   authErr:"", authMode:"login", showSetup:false,
   teamInput:"", teamNameInput:"",
+  isTeamAdmin:false, teamLLM:{hasKey:false,provider:"groq"},
+  wiz:{step:0,key:"",provider:"groq"},
 };
 function S(c){Object.assign(st,c);render()}
 
@@ -115,8 +117,43 @@ async function dbDelete(type,itemId){
   await sb.from("bpn").delete().eq("item_id",itemId).eq("team_id",st.teamId);
 }
 async function loadAll(){
-  const[signals,drops,posts,promos]=await Promise.all([dbLoad("signal"),dbLoad("drop"),dbLoad("post"),dbLoad("promo")]);
-  S({signals,drops,posts,promos,screen:"app"});
+  const[signals,drops,posts,promos,autoFromDB]=await Promise.all([
+    dbLoad("signal"),dbLoad("drop"),dbLoad("post"),dbLoad("promo"),dbLoad("auto_signal")
+  ]);
+  // Merge server-side auto_signals over the localStorage cache
+  let autoSignals=st.autoSignals;
+  if(autoFromDB&&autoFromDB.length>0){
+    autoSignals=autoFromDB.map(r=>r.payload);
+    localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
+    const maxTs=autoSignals.reduce((m,s)=>Math.max(m,s.ts||0),0);
+    if(maxTs)localStorage.setItem("bpn-ls",String(maxTs));
+    st.lastScan=maxTs||st.lastScan;
+  }
+  S({signals,drops,posts,promos,autoSignals,screen:"app"});
+}
+
+async function loadTeamLLMStatus(){
+  if(!st.teamId)return;
+  try{
+    const{data,error}=await sb.rpc("get_team_llm_status",{p_team_id:st.teamId});
+    if(error){console.warn("get_team_llm_status",error);return}
+    if(data&&data[0])st.teamLLM={hasKey:!!data[0].has_key,provider:data[0].provider||"groq"};
+  }catch(e){console.warn("LLM status fetch failed",e)}
+}
+
+async function setTeamLLMSecret(key,provider){
+  if(!st.teamId)return"No team";
+  const{error}=await sb.rpc("set_team_llm_secret",{p_team_id:st.teamId,p_key:key,p_provider:provider||"groq"});
+  if(error)return error.message;
+  await loadTeamLLMStatus();
+  render();
+  return null;
+}
+
+function hasLLMConfigured(){return (st.teamLLM&&st.teamLLM.hasKey)||!!getLLMKey()}
+
+async function getAuthToken(){
+  try{const{data:{session}}=await sb.auth.getSession();return session?.access_token||null}catch{return null}
 }
 
 // ─── Auth ───
@@ -145,7 +182,9 @@ async function checkSession(){
     const{data:team}=await sb.from("teams").select("*").eq("id",tid).single();
     st.teamId=tid;
     st.teamName=team?team.name:"Team";
+    st.isTeamAdmin=team?team.created_by===user.id:false;
     st.cfg=getCfg();
+    await loadTeamLLMStatus();
     await loadAll();
   } else {
     S({screen:"team",user});
@@ -163,6 +202,14 @@ async function createTeam(name){
   const{error:e2}=await sb.from("team_members").insert({team_id:data.id,user_id:user.id});
   if(e2)return S({authErr:"Team created but could not add member: "+e2.message});
   st.teamId=data.id;st.teamName=name.trim();
+  st.isTeamAdmin=true;
+  st.cfg=getCfg();
+  st.wiz={step:0,key:"",provider:"groq"};
+  // First-time team admin: walk through onboarding wizard before showing app.
+  S({screen:"wizard"});
+}
+async function finishWizard(){
+  setCfgLocal(st.cfg);
   await loadAll();
 }
 async function joinTeam(code){
@@ -198,6 +245,26 @@ Return ONLY valid JSON in this exact format, no markdown, no commentary:
 {"products":[{"name":"short product name","search":"2-4 plain keywords for search","category":"Apparel|Accessories|Collectibles|Books|Games|Home|Tech|Food|Fitness|Other","desc":"1-sentence angle for the TikTok video hook","price":25}]}`;
 
 async function suggestProducts(headline){
+  // Path 1 (preferred): team-shared key, called via Edge Function
+  if(st.teamLLM&&st.teamLLM.hasKey){
+    try{
+      const token=await getAuthToken();
+      if(!token){st.lastLLMError="No session";return null}
+      const r=await fetch(`${SUPABASE_URL}/functions/v1/llm-suggest`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+        body:JSON.stringify({headline,team_id:st.teamId})
+      });
+      const data=await r.json().catch(()=>null);
+      if(!r.ok){st.lastLLMError="server "+r.status+": "+((data&&data.error)||"unknown");return null}
+      st.lastLLMError="";
+      return (data&&data.products)||null;
+    }catch(e){
+      st.lastLLMError="server fail: "+e.message;
+      return null;
+    }
+  }
+  // Path 2 (legacy fallback): per-user localStorage key, direct provider call
   const key=getLLMKey();
   const provider=getLLMProvider();
   if(!key){st.lastLLMError="No API key set";return null}
@@ -243,10 +310,44 @@ async function fetchReddit(sub,limit=15){
   try{const r=await fetch("https://www.reddit.com/r/"+sub+"/hot.json?limit="+limit+"&raw_json=1");if(!r.ok)return[];const d=await r.json();return(d.data.children||[]).filter(c=>!c.data.stickied).map(c=>{const p=c.data;const ageH=Math.max(1,(Date.now()/1000-p.created_utc)/3600);const v=Math.min(10,Math.round(Math.log2(1+(p.ups+p.num_comments*3)/ageH)));return{id:"a-"+p.id,keyword:p.title.length>80?p.title.slice(0,77)+"...":p.title,fullTitle:p.title,source:"Reddit r/"+sub,velocity:v,notes:p.num_comments+" comments - "+p.ups+" upvotes - "+Math.round(ageH)+"h ago",url:"https://reddit.com"+p.permalink,category:guessCat(p.title),ts:p.created_utc*1000,auto:true,products:null}})}catch{return[]}}
 function guessCat(t){t=t.toLowerCase();if(/kit|jersey|shirt|wear/.test(t))return"Apparel";if(/poster|art|print|photo/.test(t))return"Art/Prints";if(/scarf|hat|flag|badge/.test(t))return"Accessories";return""}
 
+async function triggerServerScan(){
+  // Calls scan-signals Edge Function. Returns true if it ran and wrote rows.
+  if(!st.teamLLM||!st.teamLLM.hasKey)return false;
+  const token=await getAuthToken();
+  if(!token)return false;
+  try{
+    const r=await fetch(`${SUPABASE_URL}/functions/v1/scan-signals`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body:"{}"
+    });
+    if(!r.ok)return false;
+    const data=await r.json().catch(()=>null);
+    return !!(data&&data.ok&&data.signals_written>0);
+  }catch{return false}
+}
+
 async function scanNow(){
-  S({scanning:true,scanProgress:"Fetching Reddit..."});
+  S({scanning:true,scanProgress:"Scanning..."});
+  // Path 1 (preferred): server-side scan + LLM enrichment in one shot.
+  if(st.teamLLM&&st.teamLLM.hasKey){
+    S({scanProgress:"Server scan..."});
+    const ok=await triggerServerScan();
+    if(ok){
+      const autoFromDB=await dbLoad("auto_signal");
+      const autoSignals=autoFromDB.map(r=>r.payload);
+      const lastScan=autoSignals.reduce((m,s)=>Math.max(m,s.ts||0),Date.now());
+      localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
+      localStorage.setItem("bpn-ls",String(lastScan));
+      S({autoSignals,lastScan,scanning:false,scanProgress:""});
+      return;
+    }
+    // If server scan failed, fall through to legacy direct path.
+  }
+  // Path 2 (legacy fallback): direct Reddit fetch in browser.
   try{
     // Step 1: Fetch Reddit (parallel, 3 subs)
+    S({scanProgress:"Fetching Reddit..."});
     const[a,b,c]=await Promise.all([fetchReddit("soccer",15),fetchReddit("PremierLeague",10),fetchReddit("EFL",8)]);
     const all=[...a,...b,...c];
     const seen=new Set();
@@ -260,7 +361,7 @@ async function scanNow(){
     S({autoSignals,lastScan,scanProgress:"Generating product ideas..."});
 
     // Step 2: LLM enrichment in PARALLEL (not sequential)
-    if(getLLMKey()){
+    if(hasLLMConfigured()){
       const topSignals=autoSignals.filter(s=>s.velocity>=6).slice(0,5);
       if(topSignals.length>0){
         S({scanProgress:"Ideas 0/"+topSignals.length+"..."});
@@ -406,6 +507,82 @@ async function logPromotion(product,sourceSignal,platform){
   S({promos,tab:"promos"});
 }
 
+// One-tap full pipeline: from a hot signal + LLM product suggestion,
+// create drop + promo + content card + UTM link + (optional) Shopify draft.
+async function oneTapPromote(product,signal){
+  if(!product||!signal)return null;
+  const moment=signal.fullTitle||signal.keyword||"";
+  const price=Number(product.price)||25;
+  const cost=Number(product.cost)||Math.round(price*0.4);
+  const marginPct=price>0?(price-cost)/price:0;
+  const dropItem={
+    id:uid(),
+    name:product.name,
+    moment,
+    category:product.category||CATS[0],
+    scores:{
+      signal: signal.velocity>=8?2:signal.velocity>=6?1:0,
+      audience: 1,
+      speed: 2,
+      margin: marginPct>=0.35?2:marginPct>=0.2?1:0,
+      halflife: 1,
+    },
+    price, cost,
+    status:"active",
+    revenue:0, orders:0, adSpend:0, returns:0,
+    sourceSignalId:signal.id,
+    productSearch:product.search||product.name,
+    ts:Date.now(),
+  };
+  const promoItem={
+    id:uid(),
+    productName:product.name,
+    searchQuery:product.search||product.name,
+    category:product.category||"Other",
+    platform:"tiktok-shop",
+    moment,
+    momentSource:signal.source||"",
+    velocity:signal.velocity||0,
+    status:"posted",
+    clicks:0, sales:0, commission:0, adSpend:0,
+    videoUrl:"", notes:"",
+    dropId:dropItem.id,
+    ts:Date.now(),
+  };
+  let utmLink="";
+  if(st.cfg.storeUrl){
+    const camp=(product.name+"-"+Date.now()).toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,40);
+    const sep=st.cfg.storeUrl.includes("?")?"&":"?";
+    utmLink=`${st.cfg.storeUrl}${sep}utm_source=tiktok&utm_medium=video&utm_campaign=${camp}`;
+  }
+  const captionMoment=moment.length>70?moment.slice(0,70)+"...":moment;
+  const postItem={
+    id:uid(),
+    platform:"tiktok",
+    caption:`POV: ${captionMoment} - grab this ${product.name.toLowerCase()} before it sells out${utmLink?" "+utmLink:""}`,
+    dropId:dropItem.id,
+    posted:false,
+    ts:Date.now(),
+  };
+  // Persist all three in parallel
+  await Promise.all([
+    dbInsert("drop",dropItem),
+    dbInsert("promo",promoItem),
+    dbInsert("post",postItem),
+  ]);
+  // Optionally fire Shopify draft creation in the background
+  if(st.cfg.shopifyEdgeConfigured){
+    createShopifyDraft(dropItem).catch(e=>console.warn("Shopify draft failed",e));
+  }
+  S({
+    drops:[dropItem,...st.drops],
+    promos:[promoItem,...st.promos],
+    posts:[postItem,...st.posts],
+    promoteResult:{drop:dropItem,product,signal,utmLink,ts:Date.now()},
+  });
+  return {drop:dropItem,promo:promoItem,post:postItem,utmLink};
+}
+
 async function logPromotionQuick(){
   const tsf=st.tsf;
   if(!tsf.name.trim()){alert("Product name required");return}
@@ -491,6 +668,12 @@ function parseNum(v){
 async function importTikTokCSV(file){
   try{
     const text=await file.text();
+    return await importTikTokCSVText(text);
+  }catch(e){alert("CSV import error: "+e.message);console.error(e)}
+}
+
+async function importTikTokCSVText(text){
+  try{
     const{rows}=parseCSV(text);
     if(rows.length===0){alert("CSV looks empty");return}
     let matched=0,created=0,skipped=0;
@@ -632,6 +815,73 @@ function render(){
     box.appendChild(card);app.appendChild(box);return;
   }
 
+  if(st.screen==="wizard"){
+    const cfg=st.cfg||{};
+    const step=(st.wiz&&st.wiz.step)||0;
+    const totalSteps=4;
+    const box=h("div",{className:"auth-wrap"});
+    const card=h("div",{className:"auth-box",style:{maxWidth:"460px"}});
+    card.appendChild(h("div",{style:{textAlign:"center",marginBottom:"14px"}},
+      h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"22px",fontWeight:700,color:"#2e86de"}},"BlueDrop Shop"),
+      h("div",{style:{color:"#94a3b8",fontSize:"12px",marginTop:"6px"}},"Quick setup — step "+(step+1)+" of "+totalSteps)
+    ));
+    const bar=h("div",{style:{height:"4px",background:"#1e293b",borderRadius:"2px",overflow:"hidden",marginBottom:"16px"}});
+    bar.appendChild(h("div",{style:{height:"100%",width:Math.round((step+1)/totalSteps*100)+"%",background:"#2e86de",transition:"width .2s"}}));
+    card.appendChild(bar);
+
+    const body=h("div",{style:{minHeight:"180px"}});
+    if(step===0){
+      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px"}},"Connect Shopify"));
+      body.appendChild(h("div",{style:{fontSize:"11px",color:"#94a3b8",marginBottom:"12px",lineHeight:"1.5"}},"Where do drops go? Enter your Shopify store domain (the bit before .myshopify.com)."));
+      body.appendChild(inp(cfg.shopifyDomain||"",v=>{st.cfg.shopifyDomain=v},"e.g. bluedrop-shop","text",{marginBottom:"8px"}));
+      body.appendChild(inp(cfg.storeUrl||"",v=>{st.cfg.storeUrl=v},"Public store URL (https://...)"));
+    } else if(step===1){
+      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px"}},"Social handles"));
+      body.appendChild(h("div",{style:{fontSize:"11px",color:"#94a3b8",marginBottom:"12px",lineHeight:"1.5"}},"For UTM links and quick-jump buttons. Skip if you don't have these yet."));
+      body.appendChild(inp(cfg.tiktokHandle||"",v=>{st.cfg.tiktokHandle=v},"TikTok handle (without @)","text",{marginBottom:"8px"}));
+      body.appendChild(inp(cfg.igHandle||"",v=>{st.cfg.igHandle=v},"Instagram handle (without @)"));
+    } else if(step===2){
+      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px"}},"Affiliate tags"));
+      body.appendChild(h("div",{style:{fontSize:"11px",color:"#94a3b8",marginBottom:"12px",lineHeight:"1.5"}},"Optional. Sign up at affiliate-program.amazon.co.uk for the Amazon tag."));
+      body.appendChild(inp(cfg.amazonTag||"",v=>{st.cfg.amazonTag=v},"Amazon Associates UK tag","text",{marginBottom:"8px"}));
+      const tkLabel=h("label",{style:{display:"flex",alignItems:"center",gap:"8px",fontSize:"12px",color:"#cbd5e1",cursor:"pointer",padding:"8px",background:"rgba(255,255,255,.03)",borderRadius:"5px"}});
+      tkLabel.appendChild(h("input",{type:"checkbox",checked:!!cfg.tiktokShopApproved,onChange:e=>{st.cfg.tiktokShopApproved=e.target.checked}}));
+      tkLabel.appendChild(h("span",null,"TikTok Shop Affiliate approved"));
+      body.appendChild(tkLabel);
+    } else if(step===3){
+      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px"}},"AI product ideas"));
+      body.appendChild(h("div",{style:{fontSize:"11px",color:"#94a3b8",marginBottom:"12px",lineHeight:"1.5"}},"One key powers product suggestions for the whole team. Free Groq tier is plenty (30 req/min): console.groq.com/keys"));
+      const wp=(st.wiz&&st.wiz.provider)||"groq";
+      body.appendChild(sel(wp,v=>{st.wiz.provider=v},["groq","openai","anthropic"],null,{marginBottom:"8px"}));
+      body.appendChild(h("input",{className:"i",type:"password",value:(st.wiz&&st.wiz.key)||"",placeholder:"Paste API key (optional, can do later)",onInput:e=>{st.wiz.key=e.target.value}}));
+      if(st.teamLLM&&st.teamLLM.hasKey)body.appendChild(h("div",{style:{fontSize:"10px",color:"#22c55e",marginTop:"6px"}},"✓ A team key is already set"));
+    }
+    card.appendChild(body);
+
+    const navRow=h("div",{style:{display:"flex",gap:"8px",marginTop:"18px",alignItems:"center"}});
+    if(step>0){
+      navRow.appendChild(h("button",{className:"b",style:{background:"#475569",flex:"0 0 auto",padding:"10px 16px",marginTop:0},onClick:()=>{S({wiz:{...st.wiz,step:step-1}})}},"Back"));
+    }
+    navRow.appendChild(h("button",{style:{background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:"11px",flex:"1",textAlign:"center"},onClick:async()=>{await finishWizard()}},"Skip and finish"));
+    if(step<totalSteps-1){
+      navRow.appendChild(h("button",{className:"b",style:{background:"#2e86de",flex:"0 0 auto",padding:"10px 16px",marginTop:0},onClick:()=>{
+        setCfgLocal(st.cfg);
+        S({wiz:{...st.wiz,step:step+1}});
+      }},"Next →"));
+    } else {
+      navRow.appendChild(h("button",{className:"b",style:{background:"#22c55e",flex:"0 0 auto",padding:"10px 16px",marginTop:0},onClick:async()=>{
+        if(st.wiz&&st.wiz.key&&st.wiz.key.trim()){
+          const err=await setTeamLLMSecret(st.wiz.key.trim(),(st.wiz.provider||"groq"));
+          if(err){alert("Could not save AI key: "+err);return}
+        }
+        await finishWizard();
+      }},"Finish ✓"));
+    }
+    card.appendChild(navRow);
+
+    box.appendChild(card);app.appendChild(box);return;
+  }
+
   // ── MAIN APP ──
   const{tab,cfg,signals,drops,posts,promos,sf,df,pf,utm,autoSignals,showSetup}=st;
   const links=getLinks(cfg);
@@ -701,17 +951,42 @@ function render(){
     sp.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"2px",marginLeft:"22px"}},"Unlocks 'Create Draft in Shopify' and order auto-sync. See SHOPIFY-SETUP.md."));
     sp.appendChild(btn("Save",()=>{setCfgLocal(st.cfg);S({showSetup:false})}));
 
-    // ─── LLM Setup ───
-    const llmBox=h("div",{style:{marginTop:"14px",padding:"10px",background:"rgba(255,255,255,.02)",borderRadius:"6px",border:"1px solid rgba(255,255,255,.06)"}});
-    llmBox.appendChild(h("div",{style:{fontSize:"11px",fontWeight:700,color:"#e2e8f0",marginBottom:"6px"}},"AI Product Suggestions (optional)"));
-    llmBox.appendChild(h("div",{style:{fontSize:"9px",color:"#94a3b8",marginBottom:"8px",lineHeight:"1.5"}},"Auto-suggest sellable products from trending topics. Free with Groq (30 req/min)."));
+    // ─── Team LLM Key (shared, server-side) ───
+    const teamLLMBox=h("div",{style:{marginTop:"14px",padding:"10px",background:"rgba(46,134,222,.06)",borderRadius:"6px",border:"1px solid rgba(46,134,222,.18)"}});
+    teamLLMBox.appendChild(h("div",{style:{fontSize:"11px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px"}},"Team AI Key (shared)"));
+    const tStatus=st.teamLLM&&st.teamLLM.hasKey
+      ?h("div",{style:{fontSize:"10px",color:"#22c55e",marginBottom:"6px"}},"✓ Active — provider: "+(st.teamLLM.provider||"groq"))
+      :h("div",{style:{fontSize:"10px",color:"#f59e0b",marginBottom:"6px"}},"Not set — radar product ideas disabled until set");
+    teamLLMBox.appendChild(tStatus);
+    if(st.isTeamAdmin){
+      teamLLMBox.appendChild(h("div",{style:{fontSize:"9px",color:"#94a3b8",marginBottom:"8px",lineHeight:"1.5"}},"Set once for the whole team. Stored server-side; never exposed to other members."));
+      let tProv=(st.teamLLM&&st.teamLLM.provider)||"groq";
+      const tProvSel=sel(tProv,v=>{tProv=v},["groq","openai","anthropic"],null,{marginBottom:"6px"});
+      teamLLMBox.appendChild(tProvSel);
+      let tKey="";
+      const tKeyInp=h("input",{className:"i",type:"password",value:"",placeholder:"Paste team API key",onInput:e=>{tKey=e.target.value}});
+      teamLLMBox.appendChild(tKeyInp);
+      teamLLMBox.appendChild(h("button",{className:"b",style:{background:"#2e86de",marginTop:"6px"},onClick:async()=>{
+        if(!tKey.trim())return alert("Paste a key first");
+        const err=await setTeamLLMSecret(tKey.trim(),tProv);
+        if(err)alert("Save failed: "+err);
+      }},"Save Team Key"));
+      teamLLMBox.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"6px",lineHeight:"1.5"}},"Free Groq: console.groq.com/keys · OpenAI: platform.openai.com · Anthropic: console.anthropic.com"));
+    } else {
+      teamLLMBox.appendChild(h("div",{style:{fontSize:"9px",color:"#94a3b8",lineHeight:"1.5"}},"Only the team creator can set the shared key. Ask them to set it in their Settings."));
+    }
+    sp.appendChild(teamLLMBox);
+
+    // ─── Personal LLM key (legacy fallback) ───
+    const llmBox=h("div",{style:{marginTop:"10px",padding:"10px",background:"rgba(255,255,255,.02)",borderRadius:"6px",border:"1px solid rgba(255,255,255,.06)"}});
+    llmBox.appendChild(h("div",{style:{fontSize:"11px",fontWeight:700,color:"#94a3b8",marginBottom:"4px"}},"Personal AI Key (fallback)"));
+    llmBox.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",marginBottom:"8px",lineHeight:"1.5"}},"Used only when no team key is set. Stored on this device."));
     const provSel=sel(getLLMProvider(),v=>{setLLMProvider(v)},["groq","openai","anthropic"],null,{marginBottom:"6px"});
     llmBox.appendChild(provSel);
     let llmKey=getLLMKey();
     const keyInp=h("input",{className:"i",type:"password",value:llmKey,placeholder:"API key (paste here)",onInput:e=>{llmKey=e.target.value}});
     llmBox.appendChild(keyInp);
-    llmBox.appendChild(h("button",{className:"b",style:{background:"#2e86de",marginTop:"6px"},onClick:()=>{setLLMKey(llmKey);S({showSetup:false})}},"Save API Key"));
-    llmBox.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"6px",lineHeight:"1.5"}},"Get free Groq key: console.groq.com/keys · OpenAI: platform.openai.com · Anthropic: console.anthropic.com"));
+    llmBox.appendChild(h("button",{className:"b",style:{background:"#475569",marginTop:"6px"},onClick:()=>{setLLMKey(llmKey);S({showSetup:false})}},"Save Personal Key"));
     sp.appendChild(llmBox);
 
     // Show team join code
@@ -722,6 +997,86 @@ function render(){
 
   const main=h("div",{style:{padding:"14px",maxWidth:"600px",margin:"0 auto"}});
 
+  // ═══ TODAY ═══ (next-action dashboard)
+  if(tab==="today"){
+    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Today"));
+    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"What needs attention right now."));
+    const actions=[];
+    // 1. Hot auto-signals not yet promoted
+    const promotedSignalIds=new Set(st.drops.filter(d=>d.sourceSignalId).map(d=>d.sourceSignalId));
+    const hotUnpromoted=(st.autoSignals||[]).filter(s=>s.velocity>=7&&!promotedSignalIds.has(s.id)).slice(0,5);
+    if(hotUnpromoted.length>0){
+      actions.push({sev:"hot",icon:"🔥",title:hotUnpromoted.length+" hot signal"+(hotUnpromoted.length>1?"s":"")+" to promote",detail:hotUnpromoted.slice(0,3).map(s=>"• "+s.keyword.slice(0,55)).join("\n"),cta:"Open Radar",act:()=>S({tab:"radar"})});
+    }
+    // 2. Active drops without Shopify draft (only flagged when EF configured)
+    if(st.cfg.shopifyEdgeConfigured){
+      const recentActive=st.drops.filter(d=>d.status==="active"&&(Date.now()-(d.ts||0)<24*3600*1000)).slice(0,3);
+      if(recentActive.length>0){
+        actions.push({sev:"warn",icon:"S",title:recentActive.length+" recent drop"+(recentActive.length>1?"s":"")+" — confirm in Shopify",detail:recentActive.map(d=>"• "+d.name).join("\n"),cta:"Open Drops",act:()=>S({tab:"drops"})});
+      }
+    }
+    // 3. Unposted content cards
+    const unposted=st.posts.filter(p=>!p.posted);
+    if(unposted.length>0){
+      actions.push({sev:"warn",icon:"C",title:unposted.length+" content card"+(unposted.length>1?"s":"")+" not posted",detail:unposted.slice(0,3).map(p=>"• "+(p.caption||"").slice(0,60)).join("\n"),cta:"Open Content",act:()=>S({tab:"content"})});
+    }
+    // 4. Promos with clicks but no sales (decision needed)
+    const losers=st.promos.filter(p=>(Number(p.clicks)||0)>=30&&(Number(p.sales)||0)===0&&p.status!=="dud").slice(0,3);
+    if(losers.length>0){
+      actions.push({sev:"warn",icon:"!",title:losers.length+" failing promo"+(losers.length>1?"s":"")+" — decide kill or boost",detail:losers.map(p=>"• "+p.productName+" ("+(p.clicks||0)+" clicks · 0 sales)").join("\n"),cta:"Open Promos",act:()=>S({tab:"promos"})});
+    }
+    // 5. Stale TikTok CSV (>3 days)
+    const lastTT=+(localStorage.getItem("bpn-tt-sync")||0);
+    if(lastTT>0&&(Date.now()-lastTT)>3*24*3600*1000){
+      const days=Math.round((Date.now()-lastTT)/(24*3600*1000));
+      actions.push({sev:"warn",icon:"↓",title:"TikTok affiliate CSV stale ("+days+" days)",detail:"Export latest from TikTok Affiliate Center → Reports.",cta:"Open Promos",act:()=>S({tab:"promos"})});
+    }
+    // 6. LLM key not configured
+    if(!hasLLMConfigured()){
+      actions.push({sev:"info",icon:"AI",title:"AI product suggestions disabled",detail:st.isTeamAdmin?"Set the team AI key in Settings to enable.":"Ask your team admin to set the team AI key.",cta:"Open Settings",act:()=>S({showSetup:true})});
+    }
+    // 7. Scan stale + no team key (so won't auto-refresh)
+    if((!st.teamLLM||!st.teamLLM.hasKey)&&st.lastScan&&(Date.now()-st.lastScan)>3600*1000){
+      const hours=Math.round((Date.now()-st.lastScan)/3600000);
+      actions.push({sev:"info",icon:"R",title:"Radar scan is "+hours+"h old",detail:"Tap Scan Now on the Radar tab.",cta:"Open Radar",act:()=>S({tab:"radar"})});
+    }
+
+    // KPI strip
+    const kpiRow=h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"6px",marginBottom:"14px"}});
+    const totalRev=st.promos.reduce((a,p)=>a+(Number(p.commission)||0),0)+st.drops.reduce((a,d)=>a+(Number(d.revenue)||0),0);
+    const totalSales=st.promos.reduce((a,p)=>a+(Number(p.sales)||0),0);
+    const activeDrops=st.drops.filter(d=>d.status==="active").length;
+    [["£"+totalRev.toFixed(0),"Total","#22c55e"],[String(totalSales),"Sales","#2e86de"],[String(activeDrops),"Active","#f59e0b"]].forEach(([v,l,c])=>{
+      kpiRow.appendChild(h("div",{style:{padding:"8px",background:"rgba(255,255,255,.03)",borderRadius:"6px",border:"1px solid rgba(255,255,255,.06)",textAlign:"center"}},
+        h("div",{style:{fontSize:"18px",fontWeight:800,color:c}},v),
+        h("div",{style:{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px"}},l)
+      ));
+    });
+    main.appendChild(kpiRow);
+
+    if(actions.length===0){
+      main.appendChild(h("div",{style:{padding:"24px 14px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:"8px",textAlign:"center"}},
+        h("div",{style:{fontSize:"24px",marginBottom:"6px",color:"#22c55e"}},"✓"),
+        h("div",{style:{fontSize:"12px",color:"#e2e8f0",fontWeight:600}},"All caught up"),
+        h("div",{style:{fontSize:"10px",color:"#64748b",marginTop:"4px"}},"Nothing urgent. Check Radar for new moments.")
+      ));
+    } else {
+      const sevColor={hot:"#ff004f",warn:"#f59e0b",info:"#2e86de"};
+      const sevBg={hot:"rgba(255,0,79,.06)",warn:"rgba(245,158,11,.06)",info:"rgba(46,134,222,.06)"};
+      actions.forEach(a=>{
+        const c=sevColor[a.sev]||"#94a3b8";
+        const card=h("div",{style:{padding:"10px 12px",background:sevBg[a.sev]||"rgba(255,255,255,.03)",border:"1px solid "+c+"33",borderRadius:"6px",marginBottom:"8px",cursor:"pointer"},onClick:a.act});
+        card.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}},
+          h("span",{style:{display:"inline-flex",alignItems:"center",justifyContent:"center",width:"22px",height:"22px",borderRadius:"4px",background:c+"22",color:c,fontSize:"11px",fontWeight:800,fontFamily:"'Space Mono',monospace",flexShrink:0}},a.icon),
+          h("div",{style:{flex:"1",fontSize:"12px",fontWeight:700,color:"#e2e8f0"}},a.title),
+          h("span",{style:{fontSize:"9px",color:c,fontWeight:700}},a.cta+" →")
+        ));
+        if(a.detail)card.appendChild(h("div",{style:{fontSize:"10px",color:"#94a3b8",lineHeight:"1.6",whiteSpace:"pre-line",marginLeft:"30px"}},a.detail));
+        main.appendChild(card);
+      });
+    }
+  }
+
   // ═══ RADAR ═══
   if(tab==="radar"){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Trend Radar"));
@@ -731,7 +1086,7 @@ function render(){
     sr.appendChild(h("button",{className:"b",style:{background:st.scanning?"#334155":"#2e86de",marginTop:0,flex:"1"},onClick:st.scanning?null:scanNow,disabled:st.scanning},st.scanning?(st.scanProgress||"Scanning..."):"Scan Now"));
     if(st.lastScan>0){const m=Math.round((Date.now()-st.lastScan)/60000);sr.appendChild(h("span",{style:{fontSize:"9px",color:"#475569",whiteSpace:"nowrap"}},m<60?m+"m ago":Math.round(m/60)+"h ago"))}
     main.appendChild(sr);
-    if(!getLLMKey())main.appendChild(h("div",{style:{fontSize:"10px",color:"#f59e0b",marginBottom:"10px",padding:"6px 10px",background:"rgba(245,158,11,.08)",borderRadius:"5px"}},"Tip: Add a free Groq API key in Settings (*) to auto-generate product ideas."));
+    if(!hasLLMConfigured())main.appendChild(h("div",{style:{fontSize:"10px",color:"#f59e0b",marginBottom:"10px",padding:"6px 10px",background:"rgba(245,158,11,.08)",borderRadius:"5px"}},"Tip: "+(st.isTeamAdmin?"set the Team AI Key in Settings (*) so everyone gets product ideas.":"ask your team admin to set the Team AI Key, or add your own in Settings (*).")));
     else main.appendChild(h("div",{style:{height:"6px"}}));
     // Show LLM error banner if suggest calls failed
     if(st.lastLLMError){
@@ -777,7 +1132,10 @@ function render(){
                   h("span",{style:{fontSize:"9px",color:"#94a3b8"}},"~£"+p.price)
                 )
               ),
-              h("button",{style:{background:"#ff004f",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"6px 10px",borderRadius:"4px",cursor:"pointer",flexShrink:0},onClick:()=>logPromotion(p,s,"tiktok-shop")},"★ Promote")
+              h("div",{style:{display:"flex",flexDirection:"column",gap:"3px",flexShrink:0}},
+                h("button",{style:{background:"#22c55e",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"6px 10px",borderRadius:"4px",cursor:"pointer",whiteSpace:"nowrap"},title:"Full pipeline: drop + promo + content card + Shopify draft",onClick:async()=>{const r=await oneTapPromote(p,s);if(r)alert("Pipeline run ✓\n• Drop saved\n• Promo logged\n• Content card seeded"+(r.utmLink?"\n• UTM link copied below":""))}},"★ Pipeline"),
+                h("button",{style:{background:"#ff004f",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"4px 10px",borderRadius:"4px",cursor:"pointer",whiteSpace:"nowrap"},onClick:()=>logPromotion(p,s,"tiktok-shop")},"Promo only")
+              )
             ));
             // Affiliate platform search links
             const linkRow=h("div",{style:{padding:"0 10px 8px",display:"flex",gap:"4px",flexWrap:"wrap"}});
@@ -855,20 +1213,37 @@ function render(){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Promotions"));
     main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Track which products + videos are converting. Import CSV from TikTok Affiliate Center weekly."));
 
-    // CSV Import row
+    // CSV Import — drop zone (file pick / drag-drop / paste-text)
     const lastSyncTs=+(localStorage.getItem("bpn-tt-sync")||0);
     const syncMin=lastSyncTs>0?Math.round((Date.now()-lastSyncTs)/60000):null;
-    const importRow=h("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"12px"}});
-    const importLabel=h("label",{style:{flex:"1",display:"block",padding:"10px 12px",background:"#ff004f",color:"#fff",fontSize:"11px",fontWeight:700,borderRadius:"6px",textAlign:"center",cursor:"pointer",letterSpacing:"0.3px"}},"📥 Import TikTok Affiliate CSV");
-    const fileInput=h("input",{type:"file",accept:".csv,text/csv",style:{display:"none"},onChange:e=>{const f=e.target.files[0];if(f)importTikTokCSV(f);e.target.value=""}});
-    importLabel.appendChild(fileInput);
-    importRow.appendChild(importLabel);
-    if(syncMin!==null){
-      const syncTxt=syncMin<60?syncMin+"m ago":syncMin<1440?Math.round(syncMin/60)+"h ago":Math.round(syncMin/1440)+"d ago";
-      importRow.appendChild(h("span",{style:{fontSize:"9px",color:"#475569",whiteSpace:"nowrap"}},syncTxt));
-    }
-    main.appendChild(importRow);
-    main.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"-8px",marginBottom:"14px",lineHeight:"1.5"}},"How: TikTok Affiliate Center → Reports → Performance → Export CSV. Then tap above to import. App auto-matches products by name and updates clicks, sales, commission."));
+    const syncTxt=syncMin===null?"Never imported":(syncMin<60?syncMin+"m ago":syncMin<1440?Math.round(syncMin/60)+"h ago":Math.round(syncMin/1440)+"d ago");
+
+    const dropZone=h("label",{style:{display:"block",padding:"16px",background:"rgba(255,0,79,.06)",border:"2px dashed rgba(255,0,79,.4)",borderRadius:"8px",textAlign:"center",cursor:"pointer",marginBottom:"6px",transition:"all .15s"}});
+    const dzInput=h("input",{type:"file",accept:".csv,text/csv",style:{display:"none"},onChange:e=>{const f=e.target.files[0];if(f)importTikTokCSV(f);e.target.value=""}});
+    dropZone.appendChild(dzInput);
+    dropZone.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:"#ff6b94",marginBottom:"4px"}},"Drop TikTok CSV here"));
+    dropZone.appendChild(h("div",{style:{fontSize:"10px",color:"#94a3b8"}},"or tap to pick a file · last sync: "+syncTxt));
+    dropZone.addEventListener("dragover",e=>{e.preventDefault();dropZone.style.background="rgba(255,0,79,.14)";dropZone.style.borderColor="#ff004f"});
+    dropZone.addEventListener("dragleave",()=>{dropZone.style.background="rgba(255,0,79,.06)";dropZone.style.borderColor="rgba(255,0,79,.4)"});
+    dropZone.addEventListener("drop",e=>{
+      e.preventDefault();
+      dropZone.style.background="rgba(255,0,79,.06)";dropZone.style.borderColor="rgba(255,0,79,.4)";
+      const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+      if(f)importTikTokCSV(f);
+    });
+    main.appendChild(dropZone);
+
+    // Paste-CSV-text fallback (collapsed by default)
+    main.appendChild(sec("Paste CSV text instead",div=>{
+      const ta=h("textarea",{rows:"4",placeholder:"Paste CSV rows here (e.g. copied from TikTok report)",style:{width:"100%",padding:"8px",borderRadius:"5px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:"#e2e8f0",fontSize:"10px",fontFamily:"'DM Sans'",resize:"vertical",boxSizing:"border-box"}});
+      const go=h("button",{className:"b",style:{background:"#ff004f",marginTop:"6px"},onClick:async()=>{
+        const txt=ta.value.trim();
+        if(!txt){alert("Paste some CSV first");return}
+        await importTikTokCSVText(txt);
+      }},"Import pasted CSV");
+      div.appendChild(ta);div.appendChild(go);
+    },true));
+    main.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"4px",marginBottom:"14px",lineHeight:"1.5"}},"How: TikTok Affiliate Center → Reports → Performance → Export CSV. Drop, pick, or paste — the app auto-matches by product name and updates clicks, sales, commission."));
 
     // Summary stats
     const activePromos=st.promos.filter(p=>p.status!=="dud");
