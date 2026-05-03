@@ -8,3 +8,6 @@ supabase/.branches/
 # Editor
 .vscode/
 .idea/
+
+# Local-only developer notes (not for the team)
+USER_GUIDE.md
