@@ -5,29 +5,31 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>BlueDrop Shop</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0c1322">
+<meta name="theme-color" content="var(--bg)">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
+html{--bg:#0c1322;--bg2:#1e293b;--text:#e2e8f0;--text-h:#f1f5f9;--text2:#94a3b8;--text3:#475569;--text4:#64748b;--border:#334155;--btn-text:#0f172a;--s1:rgba(255,255,255,.03);--s2:rgba(255,255,255,.04);--s3:rgba(255,255,255,.05);--s4:rgba(255,255,255,.06);--s5:rgba(255,255,255,.08)}
+html[data-theme="light"]{--bg:#f8fafc;--bg2:#f1f5f9;--text:#0f172a;--text-h:#0f172a;--text2:#475569;--text3:#94a3b8;--text4:#64748b;--border:#cbd5e1;--btn-text:#ffffff;--s1:rgba(0,0,0,.04);--s2:rgba(0,0,0,.05);--s3:rgba(0,0,0,.04);--s4:rgba(0,0,0,.08);--s5:rgba(0,0,0,.06)}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0c1322;color:#e2e8f0;font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased}
 input,textarea,select,button{font-family:'DM Sans',sans-serif}
-input::placeholder,textarea::placeholder{color:#475569}
+input::placeholder,textarea::placeholder{color:var(--text3)}
 input:focus,textarea:focus,select:focus{outline:none;border-color:#8b5cf6!important}
 a{text-decoration:none}
-.i{width:100%;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:rgba(255,255,255,.05);color:#e2e8f0;font-size:12px}
-.s{width:100%;padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:11px;-webkit-appearance:none}
-.b{width:100%;padding:10px;border-radius:6px;border:none;font-weight:700;font-size:13px;cursor:pointer;color:#0f172a;margin-top:6px}
+.i{width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--s3);color:var(--text);font-size:12px}
+.s{width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:11px;-webkit-appearance:none}
+.b{width:100%;padding:10px;border-radius:6px;border:none;font-weight:700;font-size:13px;cursor:pointer;color:var(--btn-text);margin-top:6px}
 .b:disabled{opacity:.4;cursor:default}
-.p{background:rgba(255,255,255,.03);border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,.06);margin-bottom:14px}
+.p{background:var(--s1);border-radius:8px;padding:12px;border:1px solid var(--s4);margin-bottom:14px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px}
-.lc{display:block;padding:9px 11px;background:rgba(255,255,255,.03);border-radius:6px;border:1px solid rgba(255,255,255,.05)}
+.lc{display:block;padding:9px 11px;background:var(--s1);border-radius:6px;border:1px solid var(--s3)}
 .lc:hover{border-color:rgba(139,92,246,.3)}
-.mt{background:rgba(255,255,255,.04);border-radius:8px;padding:11px 8px;text-align:center}
-.sh{background:none;border:none;color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;padding:3px 0;display:flex;align-items:center;gap:6px;width:100%;font-family:'DM Sans'}
-.tb{position:fixed;bottom:0;left:0;right:0;background:#0c1322;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:center;padding:5px 0;z-index:100}
+.mt{background:var(--s2);border-radius:8px;padding:11px 8px;text-align:center}
+.sh{background:none;border:none;color:var(--text2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;padding:3px 0;display:flex;align-items:center;gap:6px;width:100%;font-family:'DM Sans'}
+.tb{position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--s4);display:flex;justify-content:center;padding:5px 0;z-index:100}
 .tb button{background:none;border:none;cursor:pointer;padding:4px 10px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:48px}
 .wb{background:rgba(239,68,68,.06);border-left:3px solid #ef4444;border-radius:6px;padding:8px 10px}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
@@ -94,6 +96,7 @@ let st={
   teamInput:"", teamNameInput:"",
   isTeamAdmin:false, teamLLM:{hasKey:false,provider:"groq"},
   wiz:{step:0,key:"",provider:"groq"},
+  dark:localStorage.getItem("bpn-dark")!=="false",
 };
 function S(c){Object.assign(st,c);render()}
 
@@ -743,8 +746,8 @@ async function importTikTokCSVText(text){
 
 // ─── DOM helpers ───
 function h(tag,attrs,...ch){const el=document.createElement(tag);if(attrs)Object.entries(attrs).forEach(([k,v])=>{if(k==="style"&&typeof v==="object")Object.assign(el.style,v);else if(k.startsWith("on"))el.addEventListener(k.slice(2).toLowerCase(),v);else if(k==="className")el.className=v;else if(k==="innerHTML")el.innerHTML=v;else if(["value","placeholder","type","rows","min","max","href","target","rel","disabled","checked"].includes(k))el[k]=v;else el.setAttribute(k,v)});ch.flat(9).forEach(c=>{if(c!=null&&c!==false)el.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(String(c)):c)});return el}
-function lnk(item){return h("a",{href:item.url,target:"_blank",rel:"noopener noreferrer",className:"lc"},h("div",{style:{fontSize:"12px",fontWeight:600,color:"#c4b5fd"}},item.label+" >"),h("div",{style:{fontSize:"10px",color:"#64748b",marginTop:"1px"}},item.desc))}
-function met(label,val,color="#e2e8f0"){return h("div",{className:"mt"},h("div",{style:{fontSize:"20px",fontWeight:800,fontFamily:"'Space Mono',monospace",color}},val),h("div",{style:{fontSize:"8px",color:"#64748b",marginTop:"2px",textTransform:"uppercase",letterSpacing:"0.5px"}},label))}
+function lnk(item){return h("a",{href:item.url,target:"_blank",rel:"noopener noreferrer",className:"lc"},h("div",{style:{fontSize:"12px",fontWeight:600,color:"#c4b5fd"}},item.label+" >"),h("div",{style:{fontSize:"10px",color:"var(--text4)",marginTop:"1px"}},item.desc))}
+function met(label,val,color="var(--text)"){return h("div",{className:"mt"},h("div",{style:{fontSize:"20px",fontWeight:800,fontFamily:"'Space Mono',monospace",color}},val),h("div",{style:{fontSize:"8px",color:"var(--text4)",marginTop:"2px",textTransform:"uppercase",letterSpacing:"0.5px"}},label))}
 function sec(title,fn,collapse=false){let open=!collapse;const w=h("div",{style:{marginBottom:"14px"}});const cd=h("div",{style:{marginTop:"6px",display:open?"block":"none"}});const ar=h("span",{style:{fontSize:"7px",transform:open?"rotate(90deg)":"none",transition:"0.15s",display:"inline-block"}},">"); const btn=h("button",{className:"sh",onClick:()=>{open=!open;cd.style.display=open?"block":"none";ar.style.transform=open?"rotate(90deg)":"none"}},ar,title);fn(cd);w.appendChild(btn);w.appendChild(cd);return w}
 function inp(value,onChange,ph,type="text",sx={}){return h("input",{className:"i",type,value:String(value),placeholder:ph,style:sx,onInput:e=>onChange(type==="number"?Number(e.target.value)||0:e.target.value)})}
 function sel(value,onChange,opts,ph,sx={}){const s=h("select",{className:"s",value,style:sx,onChange:e=>onChange(e.target.value)});if(ph)s.appendChild(h("option",{value:""},ph));opts.forEach(o=>s.appendChild(h("option",{value:o},o)));return s}
@@ -752,24 +755,25 @@ function btn(text,onClick,color="#8b5cf6",disabled=false){return h("button",{cla
 
 // ─── Render ───
 function render(){
+  document.documentElement.dataset.theme=st.dark?"dark":"light";
   app.innerHTML="";
   
   // ── AUTH SCREEN ──
-  if(st.screen==="loading"){app.appendChild(h("div",{className:"auth-wrap"},h("div",{style:{color:"#64748b"}},"Loading...")));return}
+  if(st.screen==="loading"){app.appendChild(h("div",{className:"auth-wrap"},h("div",{style:{color:"var(--text4)"}},"Loading...")));return}
   if(st.screen==="auth"){
     const box=h("div",{className:"auth-wrap"});
     const card=h("div",{className:"auth-box"});
-    card.appendChild(h("div",{style:{textAlign:"center",marginBottom:"24px"}},h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"28px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),h("div",{style:{color:"#64748b",fontSize:"12px",marginTop:"4px"}},"Football Moment Commerce")));
+    card.appendChild(h("div",{style:{textAlign:"center",marginBottom:"24px"}},h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"28px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),h("div",{style:{color:"var(--text4)",fontSize:"12px",marginTop:"4px"}},"Football Moment Commerce")));
     let email="",pass="";
     card.appendChild(inp("",v=>email=v,"Email address","text",{marginBottom:"8px"}));
     card.appendChild(inp("",v=>pass=v,"Password","password",{marginBottom:"4px"}));
     if(st.authErr)card.appendChild(h("div",{className:"err"},st.authErr));
     if(st.authMode==="login"){
       card.appendChild(btn("Sign In",()=>signIn(email,pass)));
-      card.appendChild(h("div",{style:{textAlign:"center",marginTop:"12px",fontSize:"12px",color:"#64748b"}},"No account? ",h("button",{style:{background:"none",border:"none",color:"#8b5cf6",cursor:"pointer",fontWeight:600,fontSize:"12px"},onClick:()=>S({authMode:"signup",authErr:""})},"Sign Up")));
+      card.appendChild(h("div",{style:{textAlign:"center",marginTop:"12px",fontSize:"12px",color:"var(--text4)"}},"No account? ",h("button",{style:{background:"none",border:"none",color:"#8b5cf6",cursor:"pointer",fontWeight:600,fontSize:"12px"},onClick:()=>S({authMode:"signup",authErr:""})},"Sign Up")));
     } else {
       card.appendChild(btn("Sign Up",()=>signUp(email,pass)));
-      card.appendChild(h("div",{style:{textAlign:"center",marginTop:"12px",fontSize:"12px",color:"#64748b"}},"Have an account? ",h("button",{style:{background:"none",border:"none",color:"#8b5cf6",cursor:"pointer",fontWeight:600,fontSize:"12px"},onClick:()=>S({authMode:"login",authErr:""})},"Sign In")));
+      card.appendChild(h("div",{style:{textAlign:"center",marginTop:"12px",fontSize:"12px",color:"var(--text4)"}},"Have an account? ",h("button",{style:{background:"none",border:"none",color:"#8b5cf6",cursor:"pointer",fontWeight:600,fontSize:"12px"},onClick:()=>S({authMode:"login",authErr:""})},"Sign In")));
     }
     box.appendChild(card);app.appendChild(box);return;
   }
@@ -780,26 +784,26 @@ function render(){
     const card=h("div",{className:"auth-box"});
     card.appendChild(h("div",{style:{textAlign:"center",marginBottom:"20px"}},
       h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"22px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),
-      h("div",{style:{color:"#94a3b8",fontSize:"13px",marginTop:"8px"}},"Create a team or join with a code"),
-      h("div",{style:{color:"#475569",fontSize:"11px",marginTop:"4px"}},st.user?st.user.email:"")
+      h("div",{style:{color:"var(--text2)",fontSize:"13px",marginTop:"8px"}},"Create a team or join with a code"),
+      h("div",{style:{color:"var(--text3)",fontSize:"11px",marginTop:"4px"}},st.user?st.user.email:"")
     ));
 
     // Create team — use live variable, not state, to avoid re-render/focus loss
     let teamNameVal=st.teamNameInput;
     const createBox=h("div",{className:"p"});
-    createBox.appendChild(h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"14px",marginBottom:"8px"}},"Create Team"));
+    createBox.appendChild(h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"14px",marginBottom:"8px"}},"Create Team"));
     const tnInp=h("input",{className:"i",type:"text",value:teamNameVal,placeholder:"Team name (e.g. BlueDrop Shop)",onInput:e=>{teamNameVal=e.target.value;st.teamNameInput=e.target.value;createBtn.disabled=!e.target.value.trim()}});
     const createBtn=h("button",{className:"b",style:{background:"#22c55e"},disabled:!teamNameVal.trim(),onClick:()=>createTeam(teamNameVal)},"Create Team");
     createBox.appendChild(tnInp);
     createBox.appendChild(createBtn);
     card.appendChild(createBox);
 
-    card.appendChild(h("div",{style:{textAlign:"center",color:"#475569",fontSize:"11px",margin:"8px 0"}},"- or -"));
+    card.appendChild(h("div",{style:{textAlign:"center",color:"var(--text3)",fontSize:"11px",margin:"8px 0"}},"- or -"));
 
     // Join team
     let joinVal=st.teamInput;
     const joinBox=h("div",{className:"p"});
-    joinBox.appendChild(h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"14px",marginBottom:"8px"}},"Join Team"));
+    joinBox.appendChild(h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"14px",marginBottom:"8px"}},"Join Team"));
     const jInp=h("input",{className:"i",type:"text",value:joinVal,placeholder:"6-digit code",style:{textTransform:"uppercase",letterSpacing:"4px",textAlign:"center",fontSize:"18px",fontFamily:"'Space Mono',monospace"},onInput:e=>{joinVal=e.target.value;st.teamInput=e.target.value;joinBtn.disabled=e.target.value.trim().length<4}});
     const joinBtn=h("button",{className:"b",style:{background:"#8b5cf6"},disabled:joinVal.trim().length<4,onClick:()=>joinTeam(joinVal)},"Join Team");
     joinBox.appendChild(jInp);
@@ -809,7 +813,7 @@ function render(){
     if(st.authErr)card.appendChild(h("div",{className:"err",style:{textAlign:"center",marginTop:"8px",padding:"8px",background:"rgba(239,68,68,.1)",borderRadius:"6px"}},st.authErr));
 
     card.appendChild(h("div",{style:{textAlign:"center",marginTop:"12px"}},
-      h("button",{style:{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:"11px"},onClick:signOut},"Sign out and use a different account")
+      h("button",{style:{background:"none",border:"none",color:"var(--text3)",cursor:"pointer",fontSize:"11px"},onClick:signOut},"Sign out and use a different account")
     ));
 
     box.appendChild(card);app.appendChild(box);return;
@@ -823,34 +827,34 @@ function render(){
     const card=h("div",{className:"auth-box",style:{maxWidth:"460px"}});
     card.appendChild(h("div",{style:{textAlign:"center",marginBottom:"14px"}},
       h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"22px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),
-      h("div",{style:{color:"#94a3b8",fontSize:"12px",marginTop:"6px"}},"Quick setup — step "+(step+1)+" of "+totalSteps)
+      h("div",{style:{color:"var(--text2)",fontSize:"12px",marginTop:"6px"}},"Quick setup — step "+(step+1)+" of "+totalSteps)
     ));
-    const bar=h("div",{style:{height:"4px",background:"#1e293b",borderRadius:"2px",overflow:"hidden",marginBottom:"16px"}});
+    const bar=h("div",{style:{height:"4px",background:"var(--bg2)",borderRadius:"2px",overflow:"hidden",marginBottom:"16px"}});
     bar.appendChild(h("div",{style:{height:"100%",width:Math.round((step+1)/totalSteps*100)+"%",background:"#8b5cf6",transition:"width .2s"}}));
     card.appendChild(bar);
 
     const body=h("div",{style:{minHeight:"180px"}});
     if(step===0){
-      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px"}},"Connect Shopify"));
-      body.appendChild(h("div",{style:{fontSize:"11px",color:"#94a3b8",marginBottom:"12px",lineHeight:"1.5"}},"Where do drops go? Enter your Shopify store domain (the bit before .myshopify.com)."));
+      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"var(--text)",marginBottom:"4px"}},"Connect Shopify"));
+      body.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text2)",marginBottom:"12px",lineHeight:"1.5"}},"Where do drops go? Enter your Shopify store domain (the bit before .myshopify.com)."));
       body.appendChild(inp(cfg.shopifyDomain||"",v=>{st.cfg.shopifyDomain=v},"e.g. bluedrop-shop","text",{marginBottom:"8px"}));
       body.appendChild(inp(cfg.storeUrl||"",v=>{st.cfg.storeUrl=v},"Public store URL (https://...)"));
     } else if(step===1){
-      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px"}},"Social handles"));
-      body.appendChild(h("div",{style:{fontSize:"11px",color:"#94a3b8",marginBottom:"12px",lineHeight:"1.5"}},"For UTM links and quick-jump buttons. Skip if you don't have these yet."));
+      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"var(--text)",marginBottom:"4px"}},"Social handles"));
+      body.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text2)",marginBottom:"12px",lineHeight:"1.5"}},"For UTM links and quick-jump buttons. Skip if you don't have these yet."));
       body.appendChild(inp(cfg.tiktokHandle||"",v=>{st.cfg.tiktokHandle=v},"TikTok handle (without @)","text",{marginBottom:"8px"}));
       body.appendChild(inp(cfg.igHandle||"",v=>{st.cfg.igHandle=v},"Instagram handle (without @)"));
     } else if(step===2){
-      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px"}},"Affiliate tags"));
-      body.appendChild(h("div",{style:{fontSize:"11px",color:"#94a3b8",marginBottom:"12px",lineHeight:"1.5"}},"Optional. Sign up at affiliate-program.amazon.co.uk for the Amazon tag."));
+      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"var(--text)",marginBottom:"4px"}},"Affiliate tags"));
+      body.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text2)",marginBottom:"12px",lineHeight:"1.5"}},"Optional. Sign up at affiliate-program.amazon.co.uk for the Amazon tag."));
       body.appendChild(inp(cfg.amazonTag||"",v=>{st.cfg.amazonTag=v},"Amazon Associates UK tag","text",{marginBottom:"8px"}));
-      const tkLabel=h("label",{style:{display:"flex",alignItems:"center",gap:"8px",fontSize:"12px",color:"#cbd5e1",cursor:"pointer",padding:"8px",background:"rgba(255,255,255,.03)",borderRadius:"5px"}});
+      const tkLabel=h("label",{style:{display:"flex",alignItems:"center",gap:"8px",fontSize:"12px",color:"#cbd5e1",cursor:"pointer",padding:"8px",background:"var(--s1)",borderRadius:"5px"}});
       tkLabel.appendChild(h("input",{type:"checkbox",checked:!!cfg.tiktokShopApproved,onChange:e=>{st.cfg.tiktokShopApproved=e.target.checked}}));
       tkLabel.appendChild(h("span",null,"TikTok Shop Affiliate approved"));
       body.appendChild(tkLabel);
     } else if(step===3){
-      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px"}},"AI product ideas"));
-      body.appendChild(h("div",{style:{fontSize:"11px",color:"#94a3b8",marginBottom:"12px",lineHeight:"1.5"}},"One key powers product suggestions for the whole team. Free Groq tier is plenty (30 req/min): console.groq.com/keys"));
+      body.appendChild(h("div",{style:{fontSize:"15px",fontWeight:700,color:"var(--text)",marginBottom:"4px"}},"AI product ideas"));
+      body.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text2)",marginBottom:"12px",lineHeight:"1.5"}},"One key powers product suggestions for the whole team. Free Groq tier is plenty (30 req/min): console.groq.com/keys"));
       const wp=(st.wiz&&st.wiz.provider)||"groq";
       body.appendChild(sel(wp,v=>{st.wiz.provider=v},["groq","openai","anthropic"],null,{marginBottom:"8px"}));
       body.appendChild(h("input",{className:"i",type:"password",value:(st.wiz&&st.wiz.key)||"",placeholder:"Paste API key (optional, can do later)",onInput:e=>{st.wiz.key=e.target.value}}));
@@ -860,9 +864,9 @@ function render(){
 
     const navRow=h("div",{style:{display:"flex",gap:"8px",marginTop:"18px",alignItems:"center"}});
     if(step>0){
-      navRow.appendChild(h("button",{className:"b",style:{background:"#475569",flex:"0 0 auto",padding:"10px 16px",marginTop:0},onClick:()=>{S({wiz:{...st.wiz,step:step-1}})}},"Back"));
+      navRow.appendChild(h("button",{className:"b",style:{background:"var(--text3)",flex:"0 0 auto",padding:"10px 16px",marginTop:0},onClick:()=>{S({wiz:{...st.wiz,step:step-1}})}},"Back"));
     }
-    navRow.appendChild(h("button",{style:{background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:"11px",flex:"1",textAlign:"center"},onClick:async()=>{await finishWizard()}},"Skip and finish"));
+    navRow.appendChild(h("button",{style:{background:"none",border:"none",color:"var(--text4)",cursor:"pointer",fontSize:"11px",flex:"1",textAlign:"center"},onClick:async()=>{await finishWizard()}},"Skip and finish"));
     if(step<totalSteps-1){
       navRow.appendChild(h("button",{className:"b",style:{background:"#8b5cf6",flex:"0 0 auto",padding:"10px 16px",marginTop:0},onClick:()=>{
         setCfgLocal(st.cfg);
@@ -909,7 +913,7 @@ function render(){
   const totalSc=Object.values(df.scores).reduce((a,b)=>a+b,0);
   const marginPct=df.price>0?Math.round((df.price-df.cost)/df.price*100):0;
   const utmRes=cfg.storeUrl?buildUTM(cfg.storeUrl,utm.source,utm.medium,utm.campaign):"";
-  const scCol=["#64748b","#f59e0b","#22c55e"];
+  const scCol=["var(--text4)","#f59e0b","#22c55e"];
   const vCol=totalSc>=8?"#22c55e":totalSc>=6?"#f59e0b":"#ef4444";
   const vTxt=totalSc>=8?"FAST-TRACK":totalSc>=6?"SHIP IT":totalSc>=4?"WATCHLIST":"SKIP";
 
@@ -918,48 +922,48 @@ function render(){
   // Header
   frag.appendChild(h("div",{style:{padding:"10px 14px",borderBottom:"1px solid rgba(255,255,255,.06)",display:"flex",alignItems:"center",gap:"8px"}},
     h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"16px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),
-    h("div",{style:{fontSize:"9px",color:"#475569"}},st.teamName||""),
+    h("div",{style:{fontSize:"9px",color:"var(--text3)"}},st.teamName||""),
     h("div",{style:{marginLeft:"auto",display:"flex",gap:"6px",alignItems:"center"}},
       hot.length>0?h("span",{style:{background:"#22c55e22",color:"#22c55e",fontSize:"9px",fontWeight:700,padding:"2px 7px",borderRadius:"20px"}},hot.length+" HOT"):null,
       h("span",{style:{fontSize:"9px",color:"#22c55e",fontWeight:600}},"SYNCED"),
-      h("button",{style:{background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:"11px"},onClick:()=>S({showSetup:!showSetup})},"*"),
-      h("button",{style:{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:"10px"},onClick:signOut},"out")
+      h("button",{style:{background:"none",border:"none",color:"var(--text4)",cursor:"pointer",fontSize:"18px",lineHeight:1},onClick:()=>S({showSetup:!showSetup})},"⚙"),
+      h("button",{style:{background:"none",border:"none",color:"var(--text3)",cursor:"pointer",fontSize:"10px"},onClick:signOut},"out")
     )
   ));
 
   if(showSetup){
     const sp=h("div",{style:{padding:"14px",background:"rgba(139,92,246,.06)",borderBottom:"1px solid rgba(255,255,255,.06)"}});
-    sp.appendChild(h("div",{style:{fontSize:"12px",fontWeight:700,color:"#e2e8f0",marginBottom:"8px"}},"Setup"));
+    sp.appendChild(h("div",{style:{fontSize:"12px",fontWeight:700,color:"var(--text)",marginBottom:"8px"}},"Setup"));
     sp.appendChild(inp(cfg.shopifyDomain||"",v=>{st.cfg.shopifyDomain=v},"Shopify domain slug"));
     sp.appendChild(h("div",{style:{height:"6px"}}));
     sp.appendChild(inp(cfg.storeUrl||"",v=>{st.cfg.storeUrl=v},"Store URL (https://...)"));
     sp.appendChild(h("div",{style:{display:"flex",gap:"6px",marginTop:"6px"}},inp(cfg.igHandle||"",v=>{st.cfg.igHandle=v},"IG handle"),inp(cfg.tiktokHandle||"",v=>{st.cfg.tiktokHandle=v},"TikTok handle")));
     // Affiliate setup block
-    sp.appendChild(h("div",{style:{fontSize:"10px",fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"1px",marginTop:"12px",marginBottom:"6px"}},"Affiliate Tags"));
+    sp.appendChild(h("div",{style:{fontSize:"10px",fontWeight:700,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"1px",marginTop:"12px",marginBottom:"6px"}},"Affiliate Tags"));
     sp.appendChild(inp(cfg.amazonTag||"",v=>{st.cfg.amazonTag=v},"Amazon Associates UK tag (e.g. bpnetwork-21)","text",{marginBottom:"6px"}));
-    const tkLabel=h("label",{style:{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px",color:"#94a3b8",cursor:"pointer",marginBottom:"4px"}});
+    const tkLabel=h("label",{style:{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px",color:"var(--text2)",cursor:"pointer",marginBottom:"4px"}});
     tkLabel.appendChild(h("input",{type:"checkbox",checked:!!cfg.tiktokShopApproved,onChange:e=>{st.cfg.tiktokShopApproved=e.target.checked}}));
     tkLabel.appendChild(h("span",null,"TikTok Shop Affiliate approved"));
     sp.appendChild(tkLabel);
-    sp.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginLeft:"22px",marginBottom:"8px",lineHeight:"1.4"}},"Get your Amazon tag free at affiliate-program.amazon.co.uk. Apply to TikTok Shop Affiliate in the TikTok app under Creator Tools."));
+    sp.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text3)",marginLeft:"22px",marginBottom:"8px",lineHeight:"1.4"}},"Get your Amazon tag free at affiliate-program.amazon.co.uk. Apply to TikTok Shop Affiliate in the TikTok app under Creator Tools."));
     // Shopify Edge Function toggle
-    const edgeLabel=h("label",{style:{display:"flex",alignItems:"center",gap:"6px",marginTop:"10px",cursor:"pointer",fontSize:"11px",color:"#94a3b8"}});
+    const edgeLabel=h("label",{style:{display:"flex",alignItems:"center",gap:"6px",marginTop:"10px",cursor:"pointer",fontSize:"11px",color:"var(--text2)"}});
     const edgeChk=h("input",{type:"checkbox",checked:!!cfg.shopifyEdgeConfigured,style:{cursor:"pointer"},onChange:e=>{st.cfg.shopifyEdgeConfigured=e.target.checked}});
     edgeLabel.appendChild(edgeChk);
     edgeLabel.appendChild(h("span",null,"Shopify Edge Functions deployed (enable after setup)"));
     sp.appendChild(edgeLabel);
-    sp.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"2px",marginLeft:"22px"}},"Unlocks 'Create Draft in Shopify' and order auto-sync. See SHOPIFY-SETUP.md."));
+    sp.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text3)",marginTop:"2px",marginLeft:"22px"}},"Unlocks 'Create Draft in Shopify' and order auto-sync. See SHOPIFY-SETUP.md."));
     sp.appendChild(btn("Save",()=>{setCfgLocal(st.cfg);S({showSetup:false})}));
 
     // ─── Team LLM Key (shared, server-side) ───
     const teamLLMBox=h("div",{style:{marginTop:"14px",padding:"10px",background:"rgba(139,92,246,.06)",borderRadius:"6px",border:"1px solid rgba(139,92,246,.18)"}});
-    teamLLMBox.appendChild(h("div",{style:{fontSize:"11px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px"}},"Team AI Key (shared)"));
+    teamLLMBox.appendChild(h("div",{style:{fontSize:"11px",fontWeight:700,color:"var(--text)",marginBottom:"4px"}},"Team AI Key (shared)"));
     const tStatus=st.teamLLM&&st.teamLLM.hasKey
       ?h("div",{style:{fontSize:"10px",color:"#22c55e",marginBottom:"6px"}},"✓ Active — provider: "+(st.teamLLM.provider||"groq"))
       :h("div",{style:{fontSize:"10px",color:"#f59e0b",marginBottom:"6px"}},"Not set — radar product ideas disabled until set");
     teamLLMBox.appendChild(tStatus);
     if(st.isTeamAdmin){
-      teamLLMBox.appendChild(h("div",{style:{fontSize:"9px",color:"#94a3b8",marginBottom:"8px",lineHeight:"1.5"}},"Set once for the whole team. Stored server-side; never exposed to other members."));
+      teamLLMBox.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text2)",marginBottom:"8px",lineHeight:"1.5"}},"Set once for the whole team. Stored server-side; never exposed to other members."));
       let tProv=(st.teamLLM&&st.teamLLM.provider)||"groq";
       const tProvSel=sel(tProv,v=>{tProv=v},["groq","openai","anthropic"],null,{marginBottom:"6px"});
       teamLLMBox.appendChild(tProvSel);
@@ -971,26 +975,26 @@ function render(){
         const err=await setTeamLLMSecret(tKey.trim(),tProv);
         if(err)alert("Save failed: "+err);
       }},"Save Team Key"));
-      teamLLMBox.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"6px",lineHeight:"1.5"}},"Free Groq: console.groq.com/keys · OpenAI: platform.openai.com · Anthropic: console.anthropic.com"));
+      teamLLMBox.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text3)",marginTop:"6px",lineHeight:"1.5"}},"Free Groq: console.groq.com/keys · OpenAI: platform.openai.com · Anthropic: console.anthropic.com"));
     } else {
-      teamLLMBox.appendChild(h("div",{style:{fontSize:"9px",color:"#94a3b8",lineHeight:"1.5"}},"Only the team creator can set the shared key. Ask them to set it in their Settings."));
+      teamLLMBox.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text2)",lineHeight:"1.5"}},"Only the team creator can set the shared key. Ask them to set it in their Settings."));
     }
     sp.appendChild(teamLLMBox);
 
     // ─── Personal LLM key (legacy fallback) ───
     const llmBox=h("div",{style:{marginTop:"10px",padding:"10px",background:"rgba(255,255,255,.02)",borderRadius:"6px",border:"1px solid rgba(255,255,255,.06)"}});
-    llmBox.appendChild(h("div",{style:{fontSize:"11px",fontWeight:700,color:"#94a3b8",marginBottom:"4px"}},"Personal AI Key (fallback)"));
-    llmBox.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",marginBottom:"8px",lineHeight:"1.5"}},"Used only when no team key is set. Stored on this device."));
+    llmBox.appendChild(h("div",{style:{fontSize:"11px",fontWeight:700,color:"var(--text2)",marginBottom:"4px"}},"Personal AI Key (fallback)"));
+    llmBox.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text4)",marginBottom:"8px",lineHeight:"1.5"}},"Used only when no team key is set. Stored on this device."));
     const provSel=sel(getLLMProvider(),v=>{setLLMProvider(v)},["groq","openai","anthropic"],null,{marginBottom:"6px"});
     llmBox.appendChild(provSel);
     let llmKey=getLLMKey();
     const keyInp=h("input",{className:"i",type:"password",value:llmKey,placeholder:"API key (paste here)",onInput:e=>{llmKey=e.target.value}});
     llmBox.appendChild(keyInp);
-    llmBox.appendChild(h("button",{className:"b",style:{background:"#475569",marginTop:"6px"},onClick:()=>{setLLMKey(llmKey);S({showSetup:false})}},"Save Personal Key"));
+    llmBox.appendChild(h("button",{className:"b",style:{background:"var(--text3)",marginTop:"6px"},onClick:()=>{setLLMKey(llmKey);S({showSetup:false})}},"Save Personal Key"));
     sp.appendChild(llmBox);
 
     // Show team join code
-    (async()=>{const{data}=await sb.from("teams").select("join_code").eq("id",st.teamId).single();if(data){const codeDiv=h("div",{style:{marginTop:"10px",padding:"8px 10px",background:"rgba(34,197,94,.08)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"9px",color:"#64748b"}},"Team join code (share with Tom)"),h("div",{style:{fontSize:"22px",fontWeight:800,fontFamily:"'Space Mono',monospace",color:"#22c55e",letterSpacing:"4px",marginTop:"4px"}},data.join_code));sp.appendChild(codeDiv)}})();
+    (async()=>{const{data}=await sb.from("teams").select("join_code").eq("id",st.teamId).single();if(data){const codeDiv=h("div",{style:{marginTop:"10px",padding:"8px 10px",background:"rgba(34,197,94,.08)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"9px",color:"var(--text4)"}},"Team join code (share with Tom)"),h("div",{style:{fontSize:"22px",fontWeight:800,fontFamily:"'Space Mono',monospace",color:"#22c55e",letterSpacing:"4px",marginTop:"4px"}},data.join_code));sp.appendChild(codeDiv)}})();
 
     frag.appendChild(sp);
   }
@@ -999,8 +1003,8 @@ function render(){
 
   // ═══ TODAY ═══ (next-action dashboard)
   if(tab==="today"){
-    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Today"));
-    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"What needs attention right now."));
+    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Today"));
+    main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"10px",margin:"0 0 12px"}},"What needs attention right now."));
     const actions=[];
     // 1. Hot auto-signals not yet promoted
     const promotedSignalIds=new Set(st.drops.filter(d=>d.sourceSignalId).map(d=>d.sourceSignalId));
@@ -1047,9 +1051,9 @@ function render(){
     const totalSales=st.promos.reduce((a,p)=>a+(Number(p.sales)||0),0);
     const activeDrops=st.drops.filter(d=>d.status==="active").length;
     [["£"+totalRev.toFixed(0),"Total","#22c55e"],[String(totalSales),"Sales","#8b5cf6"],[String(activeDrops),"Active","#f59e0b"]].forEach(([v,l,c])=>{
-      kpiRow.appendChild(h("div",{style:{padding:"8px",background:"rgba(255,255,255,.03)",borderRadius:"6px",border:"1px solid rgba(255,255,255,.06)",textAlign:"center"}},
+      kpiRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",border:"1px solid rgba(255,255,255,.06)",textAlign:"center"}},
         h("div",{style:{fontSize:"18px",fontWeight:800,color:c}},v),
-        h("div",{style:{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px"}},l)
+        h("div",{style:{fontSize:"9px",color:"var(--text4)",textTransform:"uppercase",letterSpacing:"0.5px"}},l)
       ));
     });
     main.appendChild(kpiRow);
@@ -1057,21 +1061,21 @@ function render(){
     if(actions.length===0){
       main.appendChild(h("div",{style:{padding:"24px 14px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:"8px",textAlign:"center"}},
         h("div",{style:{fontSize:"24px",marginBottom:"6px",color:"#22c55e"}},"✓"),
-        h("div",{style:{fontSize:"12px",color:"#e2e8f0",fontWeight:600}},"All caught up"),
-        h("div",{style:{fontSize:"10px",color:"#64748b",marginTop:"4px"}},"Nothing urgent. Check Radar for new moments.")
+        h("div",{style:{fontSize:"12px",color:"var(--text)",fontWeight:600}},"All caught up"),
+        h("div",{style:{fontSize:"10px",color:"var(--text4)",marginTop:"4px"}},"Nothing urgent. Check Radar for new moments.")
       ));
     } else {
       const sevColor={hot:"#ff004f",warn:"#f59e0b",info:"#8b5cf6"};
       const sevBg={hot:"rgba(255,0,79,.06)",warn:"rgba(245,158,11,.06)",info:"rgba(139,92,246,.06)"};
       actions.forEach(a=>{
-        const c=sevColor[a.sev]||"#94a3b8";
-        const card=h("div",{style:{padding:"10px 12px",background:sevBg[a.sev]||"rgba(255,255,255,.03)",border:"1px solid "+c+"33",borderRadius:"6px",marginBottom:"8px",cursor:"pointer"},onClick:a.act});
+        const c=sevColor[a.sev]||"var(--text2)";
+        const card=h("div",{style:{padding:"10px 12px",background:sevBg[a.sev]||"var(--s1)",border:"1px solid "+c+"33",borderRadius:"6px",marginBottom:"8px",cursor:"pointer"},onClick:a.act});
         card.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}},
           h("span",{style:{display:"inline-flex",alignItems:"center",justifyContent:"center",width:"22px",height:"22px",borderRadius:"4px",background:c+"22",color:c,fontSize:"11px",fontWeight:800,fontFamily:"'Space Mono',monospace",flexShrink:0}},a.icon),
-          h("div",{style:{flex:"1",fontSize:"12px",fontWeight:700,color:"#e2e8f0"}},a.title),
+          h("div",{style:{flex:"1",fontSize:"12px",fontWeight:700,color:"var(--text)"}},a.title),
           h("span",{style:{fontSize:"9px",color:c,fontWeight:700}},a.cta+" →")
         ));
-        if(a.detail)card.appendChild(h("div",{style:{fontSize:"10px",color:"#94a3b8",lineHeight:"1.6",whiteSpace:"pre-line",marginLeft:"30px"}},a.detail));
+        if(a.detail)card.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text2)",lineHeight:"1.6",whiteSpace:"pre-line",marginLeft:"30px"}},a.detail));
         main.appendChild(card);
       });
     }
@@ -1079,12 +1083,12 @@ function render(){
 
   // ═══ RADAR ═══
   if(tab==="radar"){
-    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Trend Radar"));
-    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Football moments (auto-scan) + TikTok Shop bestsellers (manual)."));
+    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Trend Radar"));
+    main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"10px",margin:"0 0 12px"}},"Football moments (auto-scan) + TikTok Shop bestsellers (manual)."));
     // Scan button + progress
     const sr=h("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"8px"}});
-    sr.appendChild(h("button",{className:"b",style:{background:st.scanning?"#334155":"#8b5cf6",marginTop:0,flex:"1"},onClick:st.scanning?null:scanNow,disabled:st.scanning},st.scanning?(st.scanProgress||"Scanning..."):"Scan Now"));
-    if(st.lastScan>0){const m=Math.round((Date.now()-st.lastScan)/60000);sr.appendChild(h("span",{style:{fontSize:"9px",color:"#475569",whiteSpace:"nowrap"}},m<60?m+"m ago":Math.round(m/60)+"h ago"))}
+    sr.appendChild(h("button",{className:"b",style:{background:st.scanning?"var(--border)":"#8b5cf6",marginTop:0,flex:"1"},onClick:st.scanning?null:scanNow,disabled:st.scanning},st.scanning?(st.scanProgress||"Scanning..."):"Scan Now"));
+    if(st.lastScan>0){const m=Math.round((Date.now()-st.lastScan)/60000);sr.appendChild(h("span",{style:{fontSize:"9px",color:"var(--text3)",whiteSpace:"nowrap"}},m<60?m+"m ago":Math.round(m/60)+"h ago"))}
     main.appendChild(sr);
     if(!hasLLMConfigured())main.appendChild(h("div",{style:{fontSize:"10px",color:"#f59e0b",marginBottom:"10px",padding:"6px 10px",background:"rgba(245,158,11,.08)",borderRadius:"5px"}},"Tip: "+(st.isTeamAdmin?"set the Team AI Key in Settings (*) so everyone gets product ideas.":"ask your team admin to set the Team AI Key, or add your own in Settings (*).")));
     else main.appendChild(h("div",{style:{height:"6px"}}));
@@ -1093,7 +1097,7 @@ function render(){
       main.appendChild(h("div",{style:{fontSize:"10px",color:"#ef4444",marginBottom:"10px",padding:"8px 10px",background:"rgba(239,68,68,.08)",borderLeft:"3px solid #ef4444",borderRadius:"5px",lineHeight:"1.5"}},
         h("div",{style:{fontWeight:700,marginBottom:"3px"}},"AI suggestion error:"),
         h("div",{style:{color:"#fca5a5",fontSize:"9px",fontFamily:"'Space Mono',monospace",wordBreak:"break-word"}},st.lastLLMError),
-        h("div",{style:{marginTop:"4px",color:"#64748b",fontSize:"9px"}},"Signals still saved. Fix the error and scan again, or tap 'Score manually'.")
+        h("div",{style:{marginTop:"4px",color:"var(--text4)",fontSize:"9px"}},"Signals still saved. Fix the error and scan again, or tap 'Score manually'.")
       ));
     }
 
@@ -1107,29 +1111,29 @@ function render(){
         // Headline row
         card.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"6px",padding:"8px 10px"}},
           h("div",{style:{flex:"1",minWidth:0}},
-            h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"12px",lineHeight:"1.3"}},s.keyword),
-            h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"2px"}},s.source+" - "+s.notes)
+            h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"12px",lineHeight:"1.3"}},s.keyword),
+            h("div",{style:{fontSize:"9px",color:"var(--text4)",marginTop:"2px"}},s.source+" - "+s.notes)
           ),
           h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",flexShrink:0}},
             h("div",{style:{fontWeight:800,fontSize:"16px",color:vc}},String(s.velocity)),
-            h("button",{style:{background:"none",border:"1px solid #334155",color:"#94a3b8",fontSize:"8px",padding:"2px 6px",borderRadius:"3px",cursor:"pointer"},onClick:()=>promoteSignal(s)},"Save")
+            h("button",{style:{background:"none",border:"1px solid #334155",color:"var(--text2)",fontSize:"8px",padding:"2px 6px",borderRadius:"3px",cursor:"pointer"},onClick:()=>promoteSignal(s)},"Save")
           )
         ));
         // Product suggestions
         if(s.products&&s.products.length>0){
           const pWrap=h("div",{style:{padding:"0 10px 10px",borderTop:"1px solid rgba(255,255,255,.05)"}});
-          pWrap.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginTop:"8px",marginBottom:"6px"}},"Real products to promote"));
+          pWrap.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text4)",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginTop:"8px",marginBottom:"6px"}},"Real products to promote"));
           s.products.forEach(p=>{
             const searches=buildProductSearches(p);
-            const prodCard=h("div",{style:{background:"rgba(255,255,255,.03)",borderRadius:"5px",marginBottom:"6px",overflow:"hidden"}});
+            const prodCard=h("div",{style:{background:"var(--s1)",borderRadius:"5px",marginBottom:"6px",overflow:"hidden"}});
             // Top row: name + promote button
             prodCard.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"8px",padding:"8px 10px"}},
               h("div",{style:{flex:"1",minWidth:0}},
-                h("div",{style:{fontSize:"11px",fontWeight:600,color:"#e2e8f0"}},p.name),
-                p.desc?h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"1px",lineHeight:"1.4"}},p.desc):null,
+                h("div",{style:{fontSize:"11px",fontWeight:600,color:"var(--text)"}},p.name),
+                p.desc?h("div",{style:{fontSize:"9px",color:"var(--text4)",marginTop:"1px",lineHeight:"1.4"}},p.desc):null,
                 h("div",{style:{display:"flex",gap:"6px",marginTop:"4px",alignItems:"center",flexWrap:"wrap"}},
                   h("span",{style:{fontSize:"9px",background:"rgba(139,92,246,.15)",color:"#c4b5fd",padding:"1px 6px",borderRadius:"8px"}},p.category),
-                  h("span",{style:{fontSize:"9px",color:"#94a3b8"}},"~£"+p.price)
+                  h("span",{style:{fontSize:"9px",color:"var(--text2)"}},"~£"+p.price)
                 )
               ),
               h("div",{style:{display:"flex",flexDirection:"column",gap:"3px",flexShrink:0}},
@@ -1139,7 +1143,7 @@ function render(){
             ));
             // Affiliate platform search links
             const linkRow=h("div",{style:{padding:"0 10px 8px",display:"flex",gap:"4px",flexWrap:"wrap"}});
-            linkRow.appendChild(h("div",{style:{fontSize:"8px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",width:"100%",marginBottom:"3px"}},"Find live product:"));
+            linkRow.appendChild(h("div",{style:{fontSize:"8px",color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.5px",width:"100%",marginBottom:"3px"}},"Find live product:"));
             searches.forEach(l=>{
               const isPrimary=l.primary;
               linkRow.appendChild(h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer",title:l.desc,style:{display:"inline-block",padding:"3px 8px",background:isPrimary?"rgba(255,0,79,.12)":"rgba(139,92,246,.08)",color:isPrimary?"#ff6b94":"#c4b5fd",fontSize:"10px",fontWeight:600,borderRadius:"3px",textDecoration:"none",border:"1px solid "+(isPrimary?"rgba(255,0,79,.25)":"rgba(139,92,246,.15)")}},l.label+" ↗"));
@@ -1157,12 +1161,12 @@ function render(){
         div.appendChild(card);
       });
     }));
-    if(restA.length>0)main.appendChild(sec("Football Watch ("+restA.length+")",div=>{restA.forEach(s=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"6px",padding:"5px 8px",borderLeft:"2px solid #334155",marginBottom:"3px",borderRadius:"3px"}},h("span",{style:{flex:"1",fontSize:"11px",color:"#94a3b8",lineHeight:"1.3"}},s.keyword),h("span",{style:{fontWeight:700,fontSize:"12px",color:"#64748b"}},String(s.velocity)),h("button",{style:{background:"#8b5cf622",border:"none",color:"#c4b5fd",fontSize:"8px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>autoToScore(s)},"Score >")))})},true));
-    if(autoSignals.length===0&&!st.scanning)main.appendChild(h("div",{style:{textAlign:"center",padding:"16px",color:"#475569",border:"1px dashed #334155",borderRadius:"8px",marginBottom:"14px",fontSize:"12px"}},"Hit Scan Now to pull trending football topics"));
+    if(restA.length>0)main.appendChild(sec("Football Watch ("+restA.length+")",div=>{restA.forEach(s=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"6px",padding:"5px 8px",borderLeft:"2px solid #334155",marginBottom:"3px",borderRadius:"3px"}},h("span",{style:{flex:"1",fontSize:"11px",color:"var(--text2)",lineHeight:"1.3"}},s.keyword),h("span",{style:{fontWeight:700,fontSize:"12px",color:"var(--text4)"}},String(s.velocity)),h("button",{style:{background:"#8b5cf622",border:"none",color:"#c4b5fd",fontSize:"8px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>autoToScore(s)},"Score >")))})},true));
+    if(autoSignals.length===0&&!st.scanning)main.appendChild(h("div",{style:{textAlign:"center",padding:"16px",color:"var(--text3)",border:"1px dashed #334155",borderRadius:"8px",marginBottom:"14px",fontSize:"12px"}},"Hit Scan Now to pull trending football topics"));
 
     // ═══ TikTok Shop Bestsellers (manual scan) ═══
     main.appendChild(sec("TikTok Shop Bestsellers",div=>{
-      div.appendChild(h("p",{style:{fontSize:"10px",color:"#64748b",margin:"0 0 8px",lineHeight:"1.5"}},"Browse what's selling on TikTok Shop right now. Tap a link, find a hot product, then log it below to run it through the full workflow."));
+      div.appendChild(h("p",{style:{fontSize:"10px",color:"var(--text4)",margin:"0 0 8px",lineHeight:"1.5"}},"Browse what's selling on TikTok Shop right now. Tap a link, find a hot product, then log it below to run it through the full workflow."));
       // Category links to TikTok Shop
       const tsLinks=[
         {label:"All Bestsellers",url:"https://www.tiktok.com/shop/c/best-sellers",desc:"Top across all categories",primary:true},
@@ -1179,7 +1183,7 @@ function render(){
       tsLinks.forEach(l=>{
         const a=h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer",style:{display:"block",padding:"8px 10px",background:l.primary?"rgba(255,0,79,.1)":"rgba(139,92,246,.06)",border:"1px solid "+(l.primary?"rgba(255,0,79,.25)":"rgba(139,92,246,.15)"),borderRadius:"5px",textDecoration:"none"}});
         a.appendChild(h("div",{style:{fontSize:"11px",fontWeight:700,color:l.primary?"#ff6b94":"#c4b5fd"}},l.label+" ↗"));
-        a.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"1px"}},l.desc));
+        a.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text4)",marginTop:"1px"}},l.desc));
         g.appendChild(a);
       });
       div.appendChild(g);
@@ -1204,14 +1208,14 @@ function render(){
 
     // Manual sections
     main.appendChild(sec("Manual Scan Sources",div=>{const g=h("div",{className:"g2"});links.research.forEach(l=>g.appendChild(lnk(l)));div.appendChild(g)},true));
-    main.appendChild(sec("Log Signal Manually",div=>{const f=h("div",{className:"p",style:{marginBottom:0}});f.appendChild(inp(sf.keyword,v=>{st.sf.keyword=v;render()},"Keyword"));f.appendChild(h("div",{style:{display:"flex",gap:"6px",marginTop:"6px"}},sel(sf.source,v=>{st.sf.source=v},SOURCES,null,{flex:"1"}),sel(sf.category,v=>{st.sf.category=v},CATS,"Category",{flex:"1"})));const vc=sf.velocity>=7?"#22c55e":"#f59e0b";f.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"8px",margin:"8px 0"}},h("span",{style:{fontSize:"10px",color:"#94a3b8"},innerHTML:"Vel: <b style='color:"+vc+"'>"+sf.velocity+"</b>"}),h("input",{type:"range",min:"0",max:"10",value:String(sf.velocity),style:{flex:"1",accentColor:vc},onInput:e=>{st.sf.velocity=+e.target.value;render()}})));f.appendChild(inp(sf.notes,v=>{st.sf.notes=v},"Notes","text",{fontSize:"10px",marginBottom:"4px"}));f.appendChild(btn("Log Signal",addSignal,"#8b5cf6",!sf.keyword.trim()));div.appendChild(f)},true));
-    if(hot.length>0)main.appendChild(sec("Saved Signals ("+hot.length+" hot)",div=>{hot.forEach(s=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"6px",padding:"7px 9px",background:"rgba(34,197,94,.06)",borderLeft:"3px solid #22c55e",borderRadius:"6px",marginBottom:"5px"}},h("div",{style:{flex:"1"}},h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"12px"}},s.keyword),h("div",{style:{fontSize:"9px",color:"#64748b"}},s.source+" - "+fmtDT(s.ts))),h("div",{style:{fontWeight:800,fontSize:"15px",color:"#22c55e"}},String(s.velocity)),h("button",{style:{background:"#8b5cf6",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"3px 7px",borderRadius:"4px",cursor:"pointer"},onClick:()=>{st.df.name=s.keyword;st.df.category=s.category||CATS[0];S({tab:"score"})}},"Score >"),h("button",{style:{background:"none",border:"none",color:"#475569",cursor:"pointer"},onClick:()=>delSignal(s.id)},"x")))})}));
+    main.appendChild(sec("Log Signal Manually",div=>{const f=h("div",{className:"p",style:{marginBottom:0}});f.appendChild(inp(sf.keyword,v=>{st.sf.keyword=v;render()},"Keyword"));f.appendChild(h("div",{style:{display:"flex",gap:"6px",marginTop:"6px"}},sel(sf.source,v=>{st.sf.source=v},SOURCES,null,{flex:"1"}),sel(sf.category,v=>{st.sf.category=v},CATS,"Category",{flex:"1"})));const vc=sf.velocity>=7?"#22c55e":"#f59e0b";f.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"8px",margin:"8px 0"}},h("span",{style:{fontSize:"10px",color:"var(--text2)"},innerHTML:"Vel: <b style='color:"+vc+"'>"+sf.velocity+"</b>"}),h("input",{type:"range",min:"0",max:"10",value:String(sf.velocity),style:{flex:"1",accentColor:vc},onInput:e=>{st.sf.velocity=+e.target.value;render()}})));f.appendChild(inp(sf.notes,v=>{st.sf.notes=v},"Notes","text",{fontSize:"10px",marginBottom:"4px"}));f.appendChild(btn("Log Signal",addSignal,"#8b5cf6",!sf.keyword.trim()));div.appendChild(f)},true));
+    if(hot.length>0)main.appendChild(sec("Saved Signals ("+hot.length+" hot)",div=>{hot.forEach(s=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"6px",padding:"7px 9px",background:"rgba(34,197,94,.06)",borderLeft:"3px solid #22c55e",borderRadius:"6px",marginBottom:"5px"}},h("div",{style:{flex:"1"}},h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"12px"}},s.keyword),h("div",{style:{fontSize:"9px",color:"var(--text4)"}},s.source+" - "+fmtDT(s.ts))),h("div",{style:{fontWeight:800,fontSize:"15px",color:"#22c55e"}},String(s.velocity)),h("button",{style:{background:"#8b5cf6",border:"none",color:"#fff",fontSize:"9px",fontWeight:700,padding:"3px 7px",borderRadius:"4px",cursor:"pointer"},onClick:()=>{st.df.name=s.keyword;st.df.category=s.category||CATS[0];S({tab:"score"})}},"Score >"),h("button",{style:{background:"none",border:"none",color:"var(--text3)",cursor:"pointer"},onClick:()=>delSignal(s.id)},"x")))})}));
   }
 
   // ═══ PROMOS ═══ (primary tab for affiliate model)
   if(tab==="promos"){
-    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Promotions"));
-    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Track which products + videos are converting. Import CSV from TikTok Affiliate Center weekly."));
+    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Promotions"));
+    main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"10px",margin:"0 0 12px"}},"Track which products + videos are converting. Import CSV from TikTok Affiliate Center weekly."));
 
     // CSV Import — drop zone (file pick / drag-drop / paste-text)
     const lastSyncTs=+(localStorage.getItem("bpn-tt-sync")||0);
@@ -1222,7 +1226,7 @@ function render(){
     const dzInput=h("input",{type:"file",accept:".csv,text/csv",style:{display:"none"},onChange:e=>{const f=e.target.files[0];if(f)importTikTokCSV(f);e.target.value=""}});
     dropZone.appendChild(dzInput);
     dropZone.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:"#ff6b94",marginBottom:"4px"}},"Drop TikTok CSV here"));
-    dropZone.appendChild(h("div",{style:{fontSize:"10px",color:"#94a3b8"}},"or tap to pick a file · last sync: "+syncTxt));
+    dropZone.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text2)"}},"or tap to pick a file · last sync: "+syncTxt));
     dropZone.addEventListener("dragover",e=>{e.preventDefault();dropZone.style.background="rgba(255,0,79,.14)";dropZone.style.borderColor="#ff004f"});
     dropZone.addEventListener("dragleave",()=>{dropZone.style.background="rgba(255,0,79,.06)";dropZone.style.borderColor="rgba(255,0,79,.4)"});
     dropZone.addEventListener("drop",e=>{
@@ -1235,7 +1239,7 @@ function render(){
 
     // Paste-CSV-text fallback (collapsed by default)
     main.appendChild(sec("Paste CSV text instead",div=>{
-      const ta=h("textarea",{rows:"4",placeholder:"Paste CSV rows here (e.g. copied from TikTok report)",style:{width:"100%",padding:"8px",borderRadius:"5px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:"#e2e8f0",fontSize:"10px",fontFamily:"'DM Sans'",resize:"vertical",boxSizing:"border-box"}});
+      const ta=h("textarea",{rows:"4",placeholder:"Paste CSV rows here (e.g. copied from TikTok report)",style:{width:"100%",padding:"8px",borderRadius:"5px",border:"1px solid #334155",background:"var(--s3)",color:"var(--text)",fontSize:"10px",fontFamily:"'DM Sans'",resize:"vertical",boxSizing:"border-box"}});
       const go=h("button",{className:"b",style:{background:"#ff004f",marginTop:"6px"},onClick:async()=>{
         const txt=ta.value.trim();
         if(!txt){alert("Paste some CSV first");return}
@@ -1243,7 +1247,7 @@ function render(){
       }},"Import pasted CSV");
       div.appendChild(ta);div.appendChild(go);
     },true));
-    main.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"4px",marginBottom:"14px",lineHeight:"1.5"}},"How: TikTok Affiliate Center → Reports → Performance → Export CSV. Drop, pick, or paste — the app auto-matches by product name and updates clicks, sales, commission."));
+    main.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text3)",marginTop:"4px",marginBottom:"14px",lineHeight:"1.5"}},"How: TikTok Affiliate Center → Reports → Performance → Export CSV. Drop, pick, or paste — the app auto-matches by product name and updates clicks, sales, commission."));
 
     // Summary stats
     const activePromos=st.promos.filter(p=>p.status!=="dud");
@@ -1254,7 +1258,7 @@ function render(){
     const mg=h("div",{className:"g3",style:{marginBottom:"14px"}});
     mg.appendChild(met("Commission (all)","£"+totalCommission.toFixed(0),"#22c55e"));
     mg.appendChild(met("Sales",String(totalSales),"#8b5cf6"));
-    mg.appendChild(met("CVR",convRate+"%",totalClicks>50?(parseFloat(convRate)>=1?"#22c55e":"#f59e0b"):"#64748b"));
+    mg.appendChild(met("CVR",convRate+"%",totalClicks>50?(parseFloat(convRate)>=1?"#22c55e":"#f59e0b"):"var(--text4)"));
     main.appendChild(mg);
 
     // ═══ INSIGHTS LAYER ═══
@@ -1285,7 +1289,7 @@ function render(){
               const cvr=(Number(p.clicks)||0)>0?((Number(p.sales)||0)/p.clicks*100).toFixed(1):"—";
               return h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:"10px",padding:"3px 0",color:"#cbd5e1"}},
                 h("span",{style:{flex:"1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginRight:"8px"}},p.productName),
-                h("span",null,h("span",{style:{color:"#22c55e",fontWeight:700}},"£"+(Number(p.commission)||0).toFixed(0))," ",h("span",{style:{color:"#64748b",fontSize:"9px"}},"CVR "+cvr+"%"))
+                h("span",null,h("span",{style:{color:"#22c55e",fontWeight:700}},"£"+(Number(p.commission)||0).toFixed(0))," ",h("span",{style:{color:"var(--text4)",fontSize:"9px"}},"CVR "+cvr+"%"))
               );
             })
           ):null,
@@ -1296,16 +1300,16 @@ function render(){
               h("span",{style:{flex:"1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginRight:"8px"}},p.productName),
               h("span",{style:{color:"#ef4444",fontSize:"10px"}},(Number(p.clicks)||0)+" clicks · 0 sales")
             )),
-            h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"4px",fontStyle:"italic"}},"Action: kill the link, swap product, or rewrite hook")
+            h("div",{style:{fontSize:"9px",color:"var(--text4)",marginTop:"4px",fontStyle:"italic"}},"Action: kill the link, swap product, or rewrite hook")
           ):null,
           // Best moment categories
           topCats.length>0?h("div",null,
             h("div",{style:{fontSize:"10px",fontWeight:700,color:"#f59e0b",marginBottom:"4px"}},"💡 Best Categories"),
             ...topCats.map(([cat,data])=>h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:"10px",padding:"3px 0",color:"#cbd5e1"}},
-              h("span",null,cat+" ",h("span",{style:{color:"#64748b",fontSize:"9px"}},"("+data.count+" promo"+(data.count>1?"s":"")+")")),
+              h("span",null,cat+" ",h("span",{style:{color:"var(--text4)",fontSize:"9px"}},"("+data.count+" promo"+(data.count>1?"s":"")+")")),
               h("span",{style:{color:"#f59e0b",fontWeight:700}},"£"+data.commission.toFixed(0))
             )),
-            h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"4px",fontStyle:"italic"}},"Action: bias next picks toward winning categories")
+            h("div",{style:{fontSize:"9px",color:"var(--text4)",marginTop:"4px",fontStyle:"italic"}},"Action: bias next picks toward winning categories")
           ):null
         ));
       }
@@ -1313,7 +1317,7 @@ function render(){
 
     // Affiliate setup reminder
     if(!cfg.amazonTag&&!cfg.tiktokShopApproved){
-      main.appendChild(h("div",{style:{padding:"10px 12px",background:"rgba(245,158,11,.08)",borderLeft:"3px solid #f59e0b",borderRadius:"5px",marginBottom:"14px",fontSize:"10px",color:"#94a3b8",lineHeight:"1.5"}},
+      main.appendChild(h("div",{style:{padding:"10px 12px",background:"rgba(245,158,11,.08)",borderLeft:"3px solid #f59e0b",borderRadius:"5px",marginBottom:"14px",fontSize:"10px",color:"var(--text2)",lineHeight:"1.5"}},
         h("div",{style:{color:"#f59e0b",fontWeight:700,marginBottom:"3px"}},"Set up your affiliate accounts"),
         h("span",null,"1. Apply to TikTok Shop Affiliate (Settings → Creator Tools in TikTok app). 2. Sign up for Amazon Associates UK at affiliate-program.amazon.co.uk — instant approval. 3. Add your Amazon tag in the Settings panel (gear icon). Commissions track automatically once configured.")
       ));
@@ -1321,39 +1325,39 @@ function render(){
 
     // Active promos
     if(st.promos.length===0){
-      main.appendChild(h("div",{style:{textAlign:"center",padding:"24px",color:"#475569",fontSize:"13px",border:"1px dashed #334155",borderRadius:"8px"}},"No promotions yet. Scan the Radar and tap ★ Promote on a product."));
+      main.appendChild(h("div",{style:{textAlign:"center",padding:"24px",color:"var(--text3)",fontSize:"13px",border:"1px dashed #334155",borderRadius:"8px"}},"No promotions yet. Scan the Radar and tap ★ Promote on a product."));
     }else{
       st.promos.forEach(p=>{
         const age=daysAgo(p.ts);
         const cvr=(Number(p.clicks)||0)>0?((Number(p.sales)||0)/p.clicks*100).toFixed(1):"—";
-        const sCol={posted:"#8b5cf6","pending-sale":"#f59e0b",earned:"#22c55e",dud:"#64748b"}[p.status]||"#64748b";
-        const card=h("div",{style:{background:"rgba(255,255,255,.03)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid "+sCol,border:"1px solid rgba(255,255,255,.06)"}});
+        const sCol={posted:"#8b5cf6","pending-sale":"#f59e0b",earned:"#22c55e",dud:"var(--text4)"}[p.status]||"var(--text4)";
+        const card=h("div",{style:{background:"var(--s1)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid "+sCol,border:"1px solid rgba(255,255,255,.06)"}});
         card.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
           h("div",{style:{flex:"1",minWidth:0}},
-            h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"13px"}},p.productName),
-            h("div",{style:{fontSize:"9px",color:"#64748b",marginTop:"1px"}},p.platform.replace("-"," ").toUpperCase()+" · "+p.category+" · Day "+age),
-            p.moment?h("div",{style:{fontSize:"9px",color:"#475569",marginTop:"2px",fontStyle:"italic"}},"Moment: "+p.moment.slice(0,80)):null
+            h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"13px"}},p.productName),
+            h("div",{style:{fontSize:"9px",color:"var(--text4)",marginTop:"1px"}},p.platform.replace("-"," ").toUpperCase()+" · "+p.category+" · Day "+age),
+            p.moment?h("div",{style:{fontSize:"9px",color:"var(--text3)",marginTop:"2px",fontStyle:"italic"}},"Moment: "+p.moment.slice(0,80)):null
           ),
           h("span",{style:{fontSize:"9px",background:sCol+"22",color:sCol,padding:"2px 8px",borderRadius:"10px",fontWeight:700,textTransform:"uppercase",flexShrink:0,marginLeft:"8px"}},p.status)
         ));
         // Tracking inputs
         const tg=h("div",{className:"g4",style:{marginTop:"8px"}});
         [{l:"Clicks",k:"clicks",c:"#8b5cf6"},{l:"Sales",k:"sales",c:"#f59e0b"},{l:"Commission £",k:"commission",c:"#22c55e"},{l:"Ad Spend £",k:"adSpend",c:"#ef4444"}].forEach(f=>{
-          const col=h("div",null,h("div",{style:{fontSize:"8px",color:"#64748b"}},f.l));
-          col.appendChild(h("input",{type:"number",value:String(p[f.k]||""),style:{width:"100%",padding:"4px 5px",borderRadius:"4px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:f.c,fontWeight:700,fontSize:"12px",boxSizing:"border-box"},onInput:e=>updPromo(p.id,{[f.k]:+e.target.value||0})}));
+          const col=h("div",null,h("div",{style:{fontSize:"8px",color:"var(--text4)"}},f.l));
+          col.appendChild(h("input",{type:"number",value:String(p[f.k]||""),style:{width:"100%",padding:"4px 5px",borderRadius:"4px",border:"1px solid #334155",background:"var(--s3)",color:f.c,fontWeight:700,fontSize:"12px",boxSizing:"border-box"},onInput:e=>updPromo(p.id,{[f.k]:+e.target.value||0})}));
           tg.appendChild(col);
         });
         card.appendChild(tg);
         // Video URL input
         const vidRow=h("div",{style:{marginTop:"6px"}});
-        vidRow.appendChild(h("input",{type:"text",placeholder:"TikTok/IG video URL (optional)",value:p.videoUrl||"",style:{width:"100%",padding:"5px 8px",borderRadius:"4px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:"#c4b5fd",fontSize:"10px",boxSizing:"border-box"},onInput:e=>updPromo(p.id,{videoUrl:e.target.value})}));
+        vidRow.appendChild(h("input",{type:"text",placeholder:"TikTok/IG video URL (optional)",value:p.videoUrl||"",style:{width:"100%",padding:"5px 8px",borderRadius:"4px",border:"1px solid #334155",background:"var(--s3)",color:"#c4b5fd",fontSize:"10px",boxSizing:"border-box"},onInput:e=>updPromo(p.id,{videoUrl:e.target.value})}));
         card.appendChild(vidRow);
         // Footer: CVR + status buttons
         card.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"8px"}},
-          h("span",{style:{fontSize:"10px",color:"#94a3b8"},innerHTML:"CVR: <b style='color:"+(cvr!=="—"&&parseFloat(cvr)>=1?"#22c55e":"#f59e0b")+"'>"+cvr+"%</b>"}),
+          h("span",{style:{fontSize:"10px",color:"var(--text2)"},innerHTML:"CVR: <b style='color:"+(cvr!=="—"&&parseFloat(cvr)>=1?"#22c55e":"#f59e0b")+"'>"+cvr+"%</b>"}),
           h("div",{style:{display:"flex",gap:"4px"}},
             h("button",{style:{background:"none",border:"1px solid #22c55e",color:"#22c55e",fontSize:"9px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>updPromo(p.id,{status:"earned"})},"Earned"),
-            h("button",{style:{background:"none",border:"1px solid #64748b",color:"#94a3b8",fontSize:"9px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>updPromo(p.id,{status:"dud"})},"Dud"),
+            h("button",{style:{background:"none",border:"1px solid #64748b",color:"var(--text2)",fontSize:"9px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>updPromo(p.id,{status:"dud"})},"Dud"),
             h("button",{style:{background:"none",border:"1px solid #ef4444",color:"#ef4444",fontSize:"9px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>{if(confirm("Delete this promotion?"))delPromo(p.id)}},"Del")
           )
         ));
@@ -1364,15 +1368,15 @@ function render(){
 
   // ═══ SCORE ═══ (reachable via old flow, for POD drops - kept as fallback)
   if(tab==="score"){
-    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Score a Drop"));
-    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"0-2 each. 6+ ships. 8+ fast-tracks."));
+    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Score a Drop"));
+    main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"10px",margin:"0 0 12px"}},"0-2 each. 6+ ships. 8+ fast-tracks."));
     const f=h("div",{className:"p"});
     f.appendChild(inp(df.name,v=>{st.df.name=v;render()},"Product name"));
     f.appendChild(h("div",{style:{height:"6px"}}));
     f.appendChild(inp(df.moment,v=>{st.df.moment=v},"Football moment","text",{fontSize:"11px"}));
     f.appendChild(h("div",{style:{display:"flex",gap:"6px",marginTop:"6px"}},sel(df.category,v=>{st.df.category=v},CATS,null,{flex:"2"}),inp(df.price,v=>{st.df.price=v;render()},"Price","number",{flex:"1"}),inp(df.cost,v=>{st.df.cost=v;render()},"Cost","number",{flex:"1"})));
-    f.appendChild(h("div",{style:{fontSize:"9px",color:"#64748b",margin:"3px 0 10px",textAlign:"right"},innerHTML:"Margin: <b style='color:"+(marginPct>=20?"#22c55e":"#ef4444")+"'>"+marginPct+"%</b>"}));
-    DIMS.forEach(dim=>{const d=h("div",{style:{marginBottom:"10px"}});d.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between"}},h("span",{style:{fontWeight:600,color:"#e2e8f0",fontSize:"11px"}},dim.label),h("span",{style:{color:scCol[df.scores[dim.key]],fontWeight:800}},String(df.scores[dim.key]))));d.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginBottom:"3px"}},dim.desc));const bs=h("div",{style:{display:"flex",gap:"5px"}});[0,1,2].forEach(v=>{const c=scCol[v],sl=df.scores[dim.key]===v;bs.appendChild(h("button",{style:{flex:"1",height:"28px",border:"2px solid "+(sl?c:"#334155"),borderRadius:"5px",background:sl?c+"22":"transparent",color:sl?c:"#475569",fontWeight:700,cursor:"pointer"},onClick:()=>{st.df.scores[dim.key]=v;render()}},String(v)))});d.appendChild(bs);f.appendChild(d)});
+    f.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text4)",margin:"3px 0 10px",textAlign:"right"},innerHTML:"Margin: <b style='color:"+(marginPct>=20?"#22c55e":"#ef4444")+"'>"+marginPct+"%</b>"}));
+    DIMS.forEach(dim=>{const d=h("div",{style:{marginBottom:"10px"}});d.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between"}},h("span",{style:{fontWeight:600,color:"var(--text)",fontSize:"11px"}},dim.label),h("span",{style:{color:scCol[df.scores[dim.key]],fontWeight:800}},String(df.scores[dim.key]))));d.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text3)",marginBottom:"3px"}},dim.desc));const bs=h("div",{style:{display:"flex",gap:"5px"}});[0,1,2].forEach(v=>{const c=scCol[v],sl=df.scores[dim.key]===v;bs.appendChild(h("button",{style:{flex:"1",height:"28px",border:"2px solid "+(sl?c:"var(--border)"),borderRadius:"5px",background:sl?c+"22":"transparent",color:sl?c:"var(--text3)",fontWeight:700,cursor:"pointer"},onClick:()=>{st.df.scores[dim.key]=v;render()}},String(v)))});d.appendChild(bs);f.appendChild(d)});
     f.appendChild(h("div",{style:{textAlign:"center",padding:"10px 0",borderTop:"1px solid rgba(255,255,255,.06)"}},h("div",{style:{fontSize:"38px",fontWeight:800,fontFamily:"'Space Mono',monospace",color:vCol},innerHTML:totalSc+"<span style='font-size:16px;color:#64748b'>/10</span>"}),h("div",{style:{fontSize:"11px",fontWeight:700,color:vCol}},vTxt)));
     if(totalSc>=6){
       f.appendChild(btn(totalSc>=8?"Fast-Track Drop":"Ship Drop",shipDrop,totalSc>=8?"#22c55e":"#f59e0b",!df.name.trim()));
@@ -1389,47 +1393,47 @@ function render(){
       }
     }
     main.appendChild(f);
-    main.appendChild(h("div",{className:"wb"},h("div",{style:{fontWeight:700,color:"#ef4444",fontSize:"10px"}},"Sanity Gates"),h("div",{style:{fontSize:"9px",color:"#94a3b8",lineHeight:"1.6",marginTop:"2px"}},"No badges/logos - Margin 20%+ - Producible <24h - Trademark check")));
+    main.appendChild(h("div",{className:"wb"},h("div",{style:{fontWeight:700,color:"#ef4444",fontSize:"10px"}},"Sanity Gates"),h("div",{style:{fontSize:"9px",color:"var(--text2)",lineHeight:"1.6",marginTop:"2px"}},"No badges/logos - Margin 20%+ - Producible <24h - Trademark check")));
   }
 
   // ═══ DROPS ═══
   if(tab==="drops"){
-    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Drops"));
-    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Track revenue, orders, ad spend, returns."));
+    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Drops"));
+    main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"10px",margin:"0 0 12px"}},"Track revenue, orders, ad spend, returns."));
 
     // Shopify auto-sync button (visible if Shopify Edge Function is configured)
     if(cfg.shopifyEdgeConfigured){
       const lastSync=+(localStorage.getItem("bpn-shopify-sync")||0);
       const syncMin=lastSync>0?Math.round((Date.now()-lastSync)/60000):null;
       const syncRow=h("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"10px"}});
-      syncRow.appendChild(h("button",{className:"b",style:{background:st.syncingShopify?"#334155":"#95BF47",marginTop:0,flex:"1"},onClick:st.syncingShopify?null:syncShopifyOrders,disabled:st.syncingShopify},st.syncingShopify?"Syncing...":"Sync Orders from Shopify"));
-      if(syncMin!==null)syncRow.appendChild(h("span",{style:{fontSize:"9px",color:"#475569",whiteSpace:"nowrap"}},syncMin<60?syncMin+"m":Math.round(syncMin/60)+"h"+" ago"));
+      syncRow.appendChild(h("button",{className:"b",style:{background:st.syncingShopify?"var(--border)":"#95BF47",marginTop:0,flex:"1"},onClick:st.syncingShopify?null:syncShopifyOrders,disabled:st.syncingShopify},st.syncingShopify?"Syncing...":"Sync Orders from Shopify"));
+      if(syncMin!==null)syncRow.appendChild(h("span",{style:{fontSize:"9px",color:"var(--text3)",whiteSpace:"nowrap"}},syncMin<60?syncMin+"m":Math.round(syncMin/60)+"h"+" ago"));
       main.appendChild(syncRow);
     }
 
     if(cfg.shopifyDomain)main.appendChild(sec("Pull Numbers From",div=>{const g=h("div",{className:"g2"});links.shopify.slice(2,6).forEach(l=>g.appendChild(lnk(l)));g.appendChild(lnk({label:"Meta Ads",url:"https://adsmanager.facebook.com",desc:"Ad spend"}));g.appendChild(lnk({label:"TikTok Ads",url:"https://business.tiktok.com",desc:"TT spend"}));div.appendChild(g)}));
-    active.forEach(d=>{const age=daysAgo(d.ts),prof=(d.revenue||0)-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0),mgn=d.revenue>0?Math.round(prof/d.revenue*100):0,sc=Object.values(d.scores||{}).reduce((a,b)=>a+b,0),roas=(d.adSpend||0)>0?((d.revenue||0)/d.adSpend).toFixed(1)+"x":"--",kw=age>=3&&(d.orders||0)<10;const c=h("div",{style:{background:"rgba(255,255,255,.03)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid #22c55e",border:"1px solid rgba(255,255,255,.06)"}});c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between"}},h("div",null,h("div",{style:{fontWeight:700,color:"#e2e8f0",fontSize:"13px"}},d.name),h("div",{style:{fontSize:"9px",color:"#64748b"}},d.category+" - Day "+age+" - Score "+sc+"/10"),d.moment?h("div",{style:{fontSize:"9px",color:"#475569"}},d.moment):null),kw?h("div",{style:{fontSize:"9px",color:"#ef4444",fontWeight:700}},"<10 in 72h!"):null));
-    const ig=h("div",{className:"g4",style:{marginTop:"8px"}});[{l:"Revenue",k:"revenue",c:"#22c55e"},{l:"Orders",k:"orders",c:"#e2e8f0"},{l:"Ad Spend",k:"adSpend",c:"#f59e0b"},{l:"Returns",k:"returns",c:"#ef4444"}].forEach(f=>{const col=h("div",null,h("div",{style:{fontSize:"8px",color:"#64748b"}},f.l),h("input",{type:"number",value:String(d[f.k]||""),style:{width:"100%",padding:"4px 5px",borderRadius:"4px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:f.c,fontWeight:700,fontSize:"12px",boxSizing:"border-box"},onInput:e=>updDrop(d.id,{[f.k]:+e.target.value||0})}));ig.appendChild(col)});c.appendChild(ig);
-    c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"6px"}},h("span",{style:{fontSize:"10px",color:"#94a3b8"},innerHTML:"Margin: <b style='color:"+(mgn>=20?"#22c55e":"#ef4444")+"'>"+mgn+"%</b>"}),h("span",{style:{fontSize:"10px",color:"#94a3b8"},innerHTML:"ROAS: <b style='color:"+(roas!=="--"&&parseFloat(roas)>=3?"#22c55e":"#f59e0b")+"'>"+roas+"</b>"}),h("div",{style:{display:"flex",gap:"5px"}},h("button",{style:{background:"none",border:"1px solid #ef4444",color:"#ef4444",fontSize:"9px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"killed"})},"Kill"),h("button",{style:{background:"none",border:"1px solid #22c55e",color:"#22c55e",fontSize:"9px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"completed"})},"Done"))));main.appendChild(c)});
-    if(!active.length)main.appendChild(h("div",{style:{textAlign:"center",padding:"24px",color:"#475569",fontSize:"13px"}},"Score a drop to get started"));
-    const past=drops.filter(d=>d.status!=="active");if(past.length)main.appendChild(sec("Past Drops",div=>{past.slice(0,15).forEach(d=>{div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"5px 8px",borderLeft:"2px solid "+(d.status==="killed"?"#ef4444":"#475569"),marginBottom:"3px",borderRadius:"3px"}},h("span",{style:{fontSize:"11px",color:"#94a3b8"}},d.name),h("span",{style:{fontSize:"11px",color:"#22c55e",fontWeight:700}},"£"+(d.revenue||0))))})},true));
+    active.forEach(d=>{const age=daysAgo(d.ts),prof=(d.revenue||0)-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0),mgn=d.revenue>0?Math.round(prof/d.revenue*100):0,sc=Object.values(d.scores||{}).reduce((a,b)=>a+b,0),roas=(d.adSpend||0)>0?((d.revenue||0)/d.adSpend).toFixed(1)+"x":"--",kw=age>=3&&(d.orders||0)<10;const c=h("div",{style:{background:"var(--s1)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid #22c55e",border:"1px solid rgba(255,255,255,.06)"}});c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between"}},h("div",null,h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"13px"}},d.name),h("div",{style:{fontSize:"9px",color:"var(--text4)"}},d.category+" - Day "+age+" - Score "+sc+"/10"),d.moment?h("div",{style:{fontSize:"9px",color:"var(--text3)"}},d.moment):null),kw?h("div",{style:{fontSize:"9px",color:"#ef4444",fontWeight:700}},"<10 in 72h!"):null));
+    const ig=h("div",{className:"g4",style:{marginTop:"8px"}});[{l:"Revenue",k:"revenue",c:"#22c55e"},{l:"Orders",k:"orders",c:"var(--text)"},{l:"Ad Spend",k:"adSpend",c:"#f59e0b"},{l:"Returns",k:"returns",c:"#ef4444"}].forEach(f=>{const col=h("div",null,h("div",{style:{fontSize:"8px",color:"var(--text4)"}},f.l),h("input",{type:"number",value:String(d[f.k]||""),style:{width:"100%",padding:"4px 5px",borderRadius:"4px",border:"1px solid #334155",background:"var(--s3)",color:f.c,fontWeight:700,fontSize:"12px",boxSizing:"border-box"},onInput:e=>updDrop(d.id,{[f.k]:+e.target.value||0})}));ig.appendChild(col)});c.appendChild(ig);
+    c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"6px"}},h("span",{style:{fontSize:"10px",color:"var(--text2)"},innerHTML:"Margin: <b style='color:"+(mgn>=20?"#22c55e":"#ef4444")+"'>"+mgn+"%</b>"}),h("span",{style:{fontSize:"10px",color:"var(--text2)"},innerHTML:"ROAS: <b style='color:"+(roas!=="--"&&parseFloat(roas)>=3?"#22c55e":"#f59e0b")+"'>"+roas+"</b>"}),h("div",{style:{display:"flex",gap:"5px"}},h("button",{style:{background:"none",border:"1px solid #ef4444",color:"#ef4444",fontSize:"9px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"killed"})},"Kill"),h("button",{style:{background:"none",border:"1px solid #22c55e",color:"#22c55e",fontSize:"9px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"completed"})},"Done"))));main.appendChild(c)});
+    if(!active.length)main.appendChild(h("div",{style:{textAlign:"center",padding:"24px",color:"var(--text3)",fontSize:"13px"}},"Score a drop to get started"));
+    const past=drops.filter(d=>d.status!=="active");if(past.length)main.appendChild(sec("Past Drops",div=>{past.slice(0,15).forEach(d=>{div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"5px 8px",borderLeft:"2px solid "+(d.status==="killed"?"#ef4444":"var(--text3)"),marginBottom:"3px",borderRadius:"3px"}},h("span",{style:{fontSize:"11px",color:"var(--text2)"}},d.name),h("span",{style:{fontSize:"11px",color:"#22c55e",fontWeight:700}},"£"+(d.revenue||0))))})},true));
   }
 
   // ═══ CONTENT ═══
   if(tab==="content"){
-    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Content Hub"));
-    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Target: 10-20/wk. Podcast biweekly."));
+    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Content Hub"));
+    main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"10px",margin:"0 0 12px"}},"Target: 10-20/wk. Podcast biweekly."));
     const mg=h("div",{className:"g3",style:{marginBottom:"14px"}});mg.appendChild(met("Posted",String(postedCt),postedCt>=10?"#22c55e":"#f59e0b"));mg.appendChild(met("Planned",String(pwk.filter(p=>!p.posted).length),"#8b5cf6"));mg.appendChild(met("Drops",String(active.length),"#f59e0b"));main.appendChild(mg);
-    main.appendChild(sec("UTM Link Builder",div=>{const b=h("div",{className:"p"});b.appendChild(h("div",{style:{display:"flex",gap:"5px"}},sel(utm.source,v=>{st.utm.source=v;render()},["instagram","tiktok","email","podcast"],null,{flex:"1"}),sel(utm.medium,v=>{st.utm.medium=v;render()},["bio","reel","story","video","link","email"],null,{flex:"1"})));b.appendChild(h("div",{style:{height:"5px"}}));b.appendChild(inp(utm.campaign,v=>{st.utm.campaign=v;render()},"Campaign name","text",{fontSize:"10px"}));if(utmRes)b.appendChild(h("div",{style:{marginTop:"6px",padding:"7px 8px",background:"#0f172a",borderRadius:"5px",fontSize:"9px",color:"#c4b5fd",wordBreak:"break-all",cursor:"pointer"},onClick:()=>{navigator.clipboard&&navigator.clipboard.writeText(utmRes)}},utmRes,h("div",{style:{color:"#475569",marginTop:"3px"}},"Tap to copy")));div.appendChild(b)}));
-    const pf2=h("div",{className:"p"});pf2.appendChild(h("div",{style:{display:"flex",gap:"5px",marginBottom:"6px"}},sel(pf.platform,v=>{st.pf.platform=v},PLATS,null,{flex:"1"}),sel(pf.dropId,v=>{st.pf.dropId=v},active.map(d=>d.name),"Link to drop",{flex:"1"})));const ta=h("textarea",{rows:"2",placeholder:"Caption / hook / idea...",style:{width:"100%",padding:"7px 8px",borderRadius:"5px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:"#e2e8f0",fontSize:"11px",fontFamily:"'DM Sans'",resize:"vertical",boxSizing:"border-box"},onInput:e=>{st.pf.caption=e.target.value}});ta.value=pf.caption;pf2.appendChild(ta);pf2.appendChild(btn("Add to Plan",addPost,"#8b5cf6",!pf.caption.trim()));main.appendChild(pf2);
+    main.appendChild(sec("UTM Link Builder",div=>{const b=h("div",{className:"p"});b.appendChild(h("div",{style:{display:"flex",gap:"5px"}},sel(utm.source,v=>{st.utm.source=v;render()},["instagram","tiktok","email","podcast"],null,{flex:"1"}),sel(utm.medium,v=>{st.utm.medium=v;render()},["bio","reel","story","video","link","email"],null,{flex:"1"})));b.appendChild(h("div",{style:{height:"5px"}}));b.appendChild(inp(utm.campaign,v=>{st.utm.campaign=v;render()},"Campaign name","text",{fontSize:"10px"}));if(utmRes)b.appendChild(h("div",{style:{marginTop:"6px",padding:"7px 8px",background:"var(--btn-text)",borderRadius:"5px",fontSize:"9px",color:"#c4b5fd",wordBreak:"break-all",cursor:"pointer"},onClick:()=>{navigator.clipboard&&navigator.clipboard.writeText(utmRes)}},utmRes,h("div",{style:{color:"var(--text3)",marginTop:"3px"}},"Tap to copy")));div.appendChild(b)}));
+    const pf2=h("div",{className:"p"});pf2.appendChild(h("div",{style:{display:"flex",gap:"5px",marginBottom:"6px"}},sel(pf.platform,v=>{st.pf.platform=v},PLATS,null,{flex:"1"}),sel(pf.dropId,v=>{st.pf.dropId=v},active.map(d=>d.name),"Link to drop",{flex:"1"})));const ta=h("textarea",{rows:"2",placeholder:"Caption / hook / idea...",style:{width:"100%",padding:"7px 8px",borderRadius:"5px",border:"1px solid #334155",background:"var(--s3)",color:"var(--text)",fontSize:"11px",fontFamily:"'DM Sans'",resize:"vertical",boxSizing:"border-box"},onInput:e=>{st.pf.caption=e.target.value}});ta.value=pf.caption;pf2.appendChild(ta);pf2.appendChild(btn("Add to Plan",addPost,"#8b5cf6",!pf.caption.trim()));main.appendChild(pf2);
     main.appendChild(sec("Post and Manage",div=>{const g=h("div",{className:"g2"});links.social.forEach(l=>g.appendChild(lnk(l)));div.appendChild(g)}));
-    if(pwk.length)main.appendChild(sec("This Week ("+pwk.length+")",div=>{pwk.forEach(c=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"6px",padding:"6px 8px",borderLeft:"2px solid "+(c.posted?"#22c55e":"#334155"),marginBottom:"3px",borderRadius:"3px"}},h("button",{style:{background:"none",border:"2px solid "+(c.posted?"#22c55e":"#475569"),borderRadius:"3px",width:"18px",height:"18px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#22c55e",fontSize:"10px",flexShrink:0},onClick:()=>togPost(c.id)},c.posted?"v":""),h("div",{style:{flex:"1"}},h("div",{style:{fontSize:"11px",color:c.posted?"#64748b":"#e2e8f0",textDecoration:c.posted?"line-through":"none"}},c.caption),h("div",{style:{fontSize:"9px",color:"#475569"}},c.platform+(c.dropId?" - "+c.dropId:"")+" - "+fmtD(c.ts))),h("button",{style:{background:"none",border:"none",color:"#334155",cursor:"pointer"},onClick:()=>delPost(c.id)},"x")))})}));
+    if(pwk.length)main.appendChild(sec("This Week ("+pwk.length+")",div=>{pwk.forEach(c=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"6px",padding:"6px 8px",borderLeft:"2px solid "+(c.posted?"#22c55e":"var(--border)"),marginBottom:"3px",borderRadius:"3px"}},h("button",{style:{background:"none",border:"2px solid "+(c.posted?"#22c55e":"var(--text3)"),borderRadius:"3px",width:"18px",height:"18px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#22c55e",fontSize:"10px",flexShrink:0},onClick:()=>togPost(c.id)},c.posted?"v":""),h("div",{style:{flex:"1"}},h("div",{style:{fontSize:"11px",color:c.posted?"var(--text4)":"var(--text)",textDecoration:c.posted?"line-through":"none"}},c.caption),h("div",{style:{fontSize:"9px",color:"var(--text3)"}},c.platform+(c.dropId?" - "+c.dropId:"")+" - "+fmtD(c.ts))),h("button",{style:{background:"none",border:"none",color:"var(--border)",cursor:"pointer"},onClick:()=>delPost(c.id)},"x")))})}));
   }
 
   // ═══ P+L ═══
   if(tab==="money"){
-    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"P+L"));
-    main.appendChild(h("p",{style:{color:"#64748b",fontSize:"10px",margin:"0 0 12px"}},"Combined affiliate commissions + POD drop revenue."));
+    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"P+L"));
+    main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"10px",margin:"0 0 12px"}},"Combined affiliate commissions + POD drop revenue."));
     const g1=h("div",{className:"g2",style:{marginBottom:"10px"}});g1.appendChild(met("Week Rev","£"+wRev.toFixed(0),"#22c55e"));g1.appendChild(met("Week Profit","£"+wProf.toFixed(0),wProf>=0?"#22c55e":"#ef4444"));g1.appendChild(met("Month Rev","£"+mRev.toFixed(0),"#8b5cf6"));g1.appendChild(met("Month Profit","£"+mProf.toFixed(0),mProf>=0?"#22c55e":"#ef4444"));main.appendChild(g1);
     // Revenue breakdown: affiliate vs drops
     const wDropRev=wRev-wCommission;
@@ -1441,39 +1445,39 @@ function render(){
         if(wCommission>0)bar.appendChild(h("div",{style:{width:affPct+"%",background:"#ff004f",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",fontWeight:700,color:"#fff"}},affPct>15?"Affiliate":""));
         if(wDropRev>0)bar.appendChild(h("div",{style:{width:(100-affPct)+"%",background:"#22c55e",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",fontWeight:700,color:"#fff"}},(100-affPct)>15?"Drops":""));
         div.appendChild(bar);
-        div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:"10px",color:"#94a3b8"}},
+        div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:"10px",color:"var(--text2)"}},
           h("span",null,"Affiliate: £"+wCommission.toFixed(0)+" ("+affPct.toFixed(0)+"%)"),
           h("span",null,"Drops: £"+wDropRev.toFixed(0)+" ("+(100-affPct).toFixed(0)+"%)")
         ));
       }));
     }
-    const g2=h("div",{className:"g3",style:{marginBottom:"14px"}});g2.appendChild(met("Orders/Sales",String(wOrd)));g2.appendChild(met("Ad Spend","£"+wAd.toFixed(0),"#f59e0b"));g2.appendChild(met("COGS","£"+wCOGS.toFixed(0),"#94a3b8"));main.appendChild(g2);
-    main.appendChild(sec("Target: £10,000/mo",div=>{const b=h("div",{className:"p"});b.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:"4px"}},h("span",{style:{fontSize:"11px",color:"#94a3b8"}},"Progress"),h("span",{style:{fontSize:"11px",fontWeight:700,color:"#e2e8f0"}},"£"+mRev.toFixed(0)+" / £10k")));b.appendChild(h("div",{style:{height:"6px",background:"#1e293b",borderRadius:"3px",overflow:"hidden"}},h("div",{style:{width:Math.min(100,mRev/100)+"%",height:"100%",background:mRev>=10000?"#22c55e":"#8b5cf6",borderRadius:"3px"}})));div.appendChild(b)}));
+    const g2=h("div",{className:"g3",style:{marginBottom:"14px"}});g2.appendChild(met("Orders/Sales",String(wOrd)));g2.appendChild(met("Ad Spend","£"+wAd.toFixed(0),"#f59e0b"));g2.appendChild(met("COGS","£"+wCOGS.toFixed(0),"var(--text2)"));main.appendChild(g2);
+    main.appendChild(sec("Target: £10,000/mo",div=>{const b=h("div",{className:"p"});b.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:"4px"}},h("span",{style:{fontSize:"11px",color:"var(--text2)"}},"Progress"),h("span",{style:{fontSize:"11px",fontWeight:700,color:"var(--text)"}},"£"+mRev.toFixed(0)+" / £10k")));b.appendChild(h("div",{style:{height:"6px",background:"var(--bg2)",borderRadius:"3px",overflow:"hidden"}},h("div",{style:{width:Math.min(100,mRev/100)+"%",height:"100%",background:mRev>=10000?"#22c55e":"#8b5cf6",borderRadius:"3px"}})));div.appendChild(b)}));
     // Top promos (affiliate)
     if(wkPromos.length){
       main.appendChild(sec("Top Promos (week)",div=>{[...wkPromos].sort((a,b)=>(Number(b.commission)||0)-(Number(a.commission)||0)).slice(0,8).forEach((p,i)=>{
         const cvr=(Number(p.clicks)||0)>0?((Number(p.sales)||0)/p.clicks*100).toFixed(1):"—";
         div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"6px 8px",background:i===0?"rgba(255,0,79,.06)":"transparent",borderRadius:"5px",marginBottom:"3px"}},
-          h("span",{style:{fontSize:"11px",color:"#e2e8f0",flex:"1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},p.productName),
+          h("span",{style:{fontSize:"11px",color:"var(--text)",flex:"1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},p.productName),
           h("span",{innerHTML:"<span style='color:#ff6b94;font-weight:700'>£"+(Number(p.commission)||0).toFixed(0)+"</span> <span style='font-size:9px;color:#64748b'>CVR "+cvr+"%</span>"})
         ));
       })}));
     }
-    if(wk.length)main.appendChild(sec("Top Drops (week)",div=>{[...wk].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).forEach((d,i)=>{const p=(d.revenue||0)-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0),m=d.revenue>0?Math.round(p/d.revenue*100):0;div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"6px 8px",background:i===0?"rgba(34,197,94,.06)":"transparent",borderRadius:"5px",marginBottom:"3px"}},h("span",{style:{fontSize:"11px",color:"#e2e8f0"}},d.name),h("span",{innerHTML:"<span style='color:#22c55e;font-weight:700'>£"+(d.revenue||0)+"</span> <span style='font-size:9px;color:"+(m>=0?"#22c55e":"#ef4444")+"'>("+m+"%)</span>"})))})}));
-    main.appendChild(sec("Weekly Review",div=>{const b=h("div",{className:"p"});[{q:"What worked?",h:"Top promo, moment, platform"},{q:"What failed?",h:"Wrong product or timing?"},{q:"What changes?",h:"One specific change"}].forEach((item,i)=>{const d2=h("div",{style:{marginBottom:i<2?"10px":"0"}});d2.appendChild(h("div",{style:{fontSize:"11px",fontWeight:600,color:"#8b5cf6"}},item.q));d2.appendChild(h("div",{style:{fontSize:"9px",color:"#475569",marginBottom:"3px"}},item.h));d2.appendChild(h("textarea",{rows:"2",placeholder:"Write...",style:{width:"100%",padding:"6px 8px",borderRadius:"5px",border:"1px solid #334155",background:"rgba(255,255,255,.05)",color:"#e2e8f0",fontSize:"10px",fontFamily:"'DM Sans'",resize:"vertical",boxSizing:"border-box"}}));b.appendChild(d2)});div.appendChild(b)}));
+    if(wk.length)main.appendChild(sec("Top Drops (week)",div=>{[...wk].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).forEach((d,i)=>{const p=(d.revenue||0)-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0),m=d.revenue>0?Math.round(p/d.revenue*100):0;div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"6px 8px",background:i===0?"rgba(34,197,94,.06)":"transparent",borderRadius:"5px",marginBottom:"3px"}},h("span",{style:{fontSize:"11px",color:"var(--text)"}},d.name),h("span",{innerHTML:"<span style='color:#22c55e;font-weight:700'>£"+(d.revenue||0)+"</span> <span style='font-size:9px;color:"+(m>=0?"#22c55e":"#ef4444")+"'>("+m+"%)</span>"})))})}));
+    main.appendChild(sec("Weekly Review",div=>{const b=h("div",{className:"p"});[{q:"What worked?",h:"Top promo, moment, platform"},{q:"What failed?",h:"Wrong product or timing?"},{q:"What changes?",h:"One specific change"}].forEach((item,i)=>{const d2=h("div",{style:{marginBottom:i<2?"10px":"0"}});d2.appendChild(h("div",{style:{fontSize:"11px",fontWeight:600,color:"#8b5cf6"}},item.q));d2.appendChild(h("div",{style:{fontSize:"9px",color:"var(--text3)",marginBottom:"3px"}},item.h));d2.appendChild(h("textarea",{rows:"2",placeholder:"Write...",style:{width:"100%",padding:"6px 8px",borderRadius:"5px",border:"1px solid #334155",background:"var(--s3)",color:"var(--text)",fontSize:"10px",fontFamily:"'DM Sans'",resize:"vertical",boxSizing:"border-box"}}));b.appendChild(d2)});div.appendChild(b)}));
   }
 
   // ═══ HUB ═══
   if(tab==="hub"){
-    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"#f1f5f9"}},"Command Hub"));
+    main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Command Hub"));
     [["Affiliate Networks",links.affiliate],["Shopify",links.shopify],["Social + Ads",links.social],["Supply + Email",links.tools],["Research",links.research]].forEach(([t,items])=>{main.appendChild(sec(t,div=>{const g=h("div",{className:"g2"});items.forEach(l=>g.appendChild(lnk(l)));div.appendChild(g)}))});
-    main.appendChild(sec("The Loop (Affiliate Model)",div=>{const b=h("div",{className:"p"});[{s:"1",l:"SCAN",d:"Radar finds hot football moments",c:"#8b5cf6"},{s:"2",l:"MATCH",d:"LLM suggests real products. Check live on TikTok Shop/Amazon.",c:"#ff004f"},{s:"3",l:"POST",d:"Tag product in TikTok video. Use Amazon affiliate link in bio.",c:"#f59e0b"},{s:"4",l:"LOG",d:"Promos tab tracks clicks, sales, commission.",c:"#22c55e"},{s:"5",l:"LEARN",d:"Sunday review. Double down on top converters.",c:"#94a3b8"}].forEach(x=>{b.appendChild(h("div",{style:{display:"flex",gap:"8px",alignItems:"flex-start",marginBottom:"8px"}},h("div",{style:{width:"24px",height:"24px",borderRadius:"50%",background:x.c+"22",border:"2px solid "+x.c,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"11px",color:x.c,flexShrink:0}},x.s),h("div",null,h("div",{style:{fontWeight:700,color:x.c,fontSize:"11px"}},x.l),h("div",{style:{fontSize:"10px",color:"#94a3b8"}},x.d))))});div.appendChild(b)}));
+    main.appendChild(sec("The Loop (Affiliate Model)",div=>{const b=h("div",{className:"p"});[{s:"1",l:"SCAN",d:"Radar finds hot football moments",c:"#8b5cf6"},{s:"2",l:"MATCH",d:"LLM suggests real products. Check live on TikTok Shop/Amazon.",c:"#ff004f"},{s:"3",l:"POST",d:"Tag product in TikTok video. Use Amazon affiliate link in bio.",c:"#f59e0b"},{s:"4",l:"LOG",d:"Promos tab tracks clicks, sales, commission.",c:"#22c55e"},{s:"5",l:"LEARN",d:"Sunday review. Double down on top converters.",c:"var(--text2)"}].forEach(x=>{b.appendChild(h("div",{style:{display:"flex",gap:"8px",alignItems:"flex-start",marginBottom:"8px"}},h("div",{style:{width:"24px",height:"24px",borderRadius:"50%",background:x.c+"22",border:"2px solid "+x.c,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"11px",color:x.c,flexShrink:0}},x.s),h("div",null,h("div",{style:{fontWeight:700,color:x.c,fontSize:"11px"}},x.l),h("div",{style:{fontSize:"10px",color:"var(--text2)"}},x.d))))});div.appendChild(b)}));
   }
 
   frag.appendChild(main);
 
   // Tab bar
-  const tb=h("div",{className:"tb"});TABS.forEach(t=>{tb.appendChild(h("button",{style:{color:tab===t.id?"#8b5cf6":"#475569"},onClick:()=>S({tab:t.id})},h("span",{style:{fontSize:"14px",fontWeight:800,fontFamily:"'Space Mono',monospace"}},t.icon),h("span",{style:{fontSize:"8px",fontFamily:"'DM Sans'",fontWeight:tab===t.id?700:500}},t.label)))});frag.appendChild(tb);
+  const tb=h("div",{className:"tb",style:{position:"fixed"}});TABS.forEach(t=>{tb.appendChild(h("button",{style:{color:tab===t.id?"#8b5cf6":"var(--text3)"},onClick:()=>S({tab:t.id})},h("span",{style:{fontSize:"14px",fontWeight:800,fontFamily:"'Space Mono',monospace"}},t.icon),h("span",{style:{fontSize:"8px",fontFamily:"'DM Sans'",fontWeight:tab===t.id?700:500}},t.label)))});tb.appendChild(h("button",{style:{position:"absolute",right:"8px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:"18px",color:"var(--text2)",padding:"4px"},onClick:()=>{const d=!st.dark;localStorage.setItem("bpn-dark",d?"true":"false");S({dark:d})}},st.dark?"☀":"🌙"));frag.appendChild(tb);
 
   app.appendChild(frag);
 }
