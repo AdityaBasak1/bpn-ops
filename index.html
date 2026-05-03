@@ -41,8 +41,8 @@ a{text-decoration:none}
 <div id="app"></div>
 <script>
 // ═══ PASTE YOUR SUPABASE CREDENTIALS HERE ═══
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://sdgdznaagzgwpbihakyx.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZ2R6bmFhZ3pnd3BiaWhha3l4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NjI1ODIsImV4cCI6MjA5MjAzODU4Mn0.hNOMbQvRqh5Rh4y03NNR3yRY4G_Z1QxFaDuJmW3jTh4";
 // ═════════════════════════════════════════════
 
 if(!SUPABASE_URL||!SUPABASE_KEY){document.getElementById("app").innerHTML='<div class="auth-wrap"><div class="auth-box" style="text-align:center"><div style="font-family:Space Mono,monospace;font-size:24px;color:#8b5cf6;font-weight:700;margin-bottom:16px">BlueDrop Shop</div><div style="color:#94a3b8;font-size:13px;line-height:1.6">Open this HTML file in a text editor and paste your Supabase URL and Key into lines 2-3.<br><br>Get them free at <a href="https://supabase.com" target="_blank" style="color:#8b5cf6">supabase.com</a><br><br>See README for full setup instructions.</div></div></div>';throw new Error("No Supabase credentials")}
