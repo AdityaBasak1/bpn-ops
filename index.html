@@ -29,11 +29,11 @@ a{text-decoration:none}
 .lc:hover{border-color:rgba(139,92,246,.3)}
 .mt{background:var(--s2);border-radius:8px;padding:11px 8px;text-align:center}
 .sh{background:none;border:none;color:var(--text2);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;padding:3px 0;display:flex;align-items:center;gap:6px;width:100%;font-family:'DM Sans'}
-.tb{position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--s4);display:flex;justify-content:center;padding:5px 0;z-index:100}
+.tb{position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--s4);display:flex;justify-content:center;padding:5px 0 calc(5px + env(safe-area-inset-bottom));z-index:100}
 .tb button{background:none;border:none;cursor:pointer;padding:4px 10px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:48px}
 .wb{background:rgba(239,68,68,.06);border-left:3px solid #ef4444;border-radius:6px;padding:8px 10px}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-#app{padding-bottom:70px}
+#app{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
 .auth-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
 .auth-box{width:100%;max-width:360px}
 .err{color:#ef4444;font-size:13px;margin-top:6px}
@@ -57,7 +57,7 @@ const SOURCES=["TikTok Creative Center","Google Trends","Reddit","Meta Ad Librar
 const CATS=["Apparel","Accessories","Collectibles","Books","Games","Home","Tech","Food","Fitness","Other"];
 const DIMS=[{key:"signal",label:"Signal Strength",desc:"How many sources confirm?"},{key:"audience",label:"Audience Fit",desc:"Does the podcast tribe want this?"},{key:"speed",label:"Production Speed",desc:"Live in under 24h?"},{key:"margin",label:"Margin Potential",desc:"Above 20% gross?"},{key:"halflife",label:"Moment Half-life",desc:"Days of relevance?"}];
 const PLATS=["IG Reel","IG Story","IG Carousel","TikTok","Podcast Clip","Email"];
-const TABS=[{id:"today",icon:"!",label:"Today"},{id:"radar",icon:"R",label:"Radar"},{id:"promos",icon:"★",label:"Promos"},{id:"drops",icon:"D",label:"Drops"},{id:"content",icon:"C",label:"Content"},{id:"money",icon:"P",label:"P+L"},{id:"hub",icon:"H",label:"Hub"}];
+const TABS=[{id:"today",icon:"⚡",label:"Today"},{id:"radar",icon:"🔍",label:"Radar"},{id:"promos",icon:"★",label:"Promos"},{id:"drops",icon:"📦",label:"Drops"},{id:"content",icon:"✏",label:"Content"},{id:"money",icon:"📊",label:"P+L"},{id:"hub",icon:"🔗",label:"Hub"}];
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function fmtD(ts){return new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
@@ -748,7 +748,7 @@ async function importTikTokCSVText(text){
 function h(tag,attrs,...ch){const el=document.createElement(tag);if(attrs)Object.entries(attrs).forEach(([k,v])=>{if(k==="style"&&typeof v==="object")Object.assign(el.style,v);else if(k.startsWith("on"))el.addEventListener(k.slice(2).toLowerCase(),v);else if(k==="className")el.className=v;else if(k==="innerHTML")el.innerHTML=v;else if(["value","placeholder","type","rows","min","max","href","target","rel","disabled","checked"].includes(k))el[k]=v;else el.setAttribute(k,v)});ch.flat(9).forEach(c=>{if(c!=null&&c!==false)el.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(String(c)):c)});return el}
 function lnk(item){return h("a",{href:item.url,target:"_blank",rel:"noopener noreferrer",className:"lc"},h("div",{style:{fontSize:"14px",fontWeight:600,color:"var(--accent-text)"}},item.label+" >"),h("div",{style:{fontSize:"12px",color:"var(--text4)",marginTop:"1px"}},item.desc))}
 function met(label,val,color="var(--text)"){return h("div",{className:"mt"},h("div",{style:{fontSize:"20px",fontWeight:800,fontFamily:"'Space Mono',monospace",color}},val),h("div",{style:{fontSize:"10px",color:"var(--text4)",marginTop:"2px",textTransform:"uppercase",letterSpacing:"0.5px"}},label))}
-function sec(title,fn,collapse=false){let open=!collapse;const w=h("div",{style:{marginBottom:"14px"}});const cd=h("div",{style:{marginTop:"6px",display:open?"block":"none"}});const ar=h("span",{style:{fontSize:"9px",transform:open?"rotate(90deg)":"none",transition:"0.15s",display:"inline-block"}},">"); const btn=h("button",{className:"sh",onClick:()=>{open=!open;cd.style.display=open?"block":"none";ar.style.transform=open?"rotate(90deg)":"none"}},ar,title);fn(cd);w.appendChild(btn);w.appendChild(cd);return w}
+function sec(title,fn,collapse=false){let open=!collapse;const w=h("div",{style:{marginBottom:"14px"}});const cd=h("div",{style:{marginTop:"6px",display:open?"block":"none"}});const ar=h("span",{style:{fontSize:"14px",transform:open?"rotate(90deg)":"none",transition:"0.15s",display:"inline-block",lineHeight:1}},"›");const btn=h("button",{className:"sh",onClick:()=>{open=!open;cd.style.display=open?"block":"none";ar.style.transform=open?"rotate(90deg)":"none"}},ar,title);fn(cd);w.appendChild(btn);w.appendChild(cd);return w}
 function inp(value,onChange,ph,type="text",sx={}){return h("input",{className:"i",type,value:String(value),placeholder:ph,style:sx,onInput:e=>onChange(type==="number"?Number(e.target.value)||0:e.target.value)})}
 function sel(value,onChange,opts,ph,sx={}){const s=h("select",{className:"s",value,style:sx,onChange:e=>onChange(e.target.value)});if(ph)s.appendChild(h("option",{value:""},ph));opts.forEach(o=>s.appendChild(h("option",{value:o},o)));return s}
 function btn(text,onClick,color="#8b5cf6",disabled=false){return h("button",{className:"b",style:{background:color},onClick,disabled},text)}
@@ -934,7 +934,7 @@ function render(){
 
   if(showSetup){
     const sp=h("div",{style:{padding:"14px",background:"rgba(139,92,246,.06)",borderBottom:"1px solid var(--s4)"}});
-    sp.appendChild(h("div",{style:{fontSize:"14px",fontWeight:700,color:"var(--text)",marginBottom:"8px"}},"Setup"));
+    sp.appendChild(h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px"}},h("div",{style:{fontSize:"14px",fontWeight:700,color:"var(--text)"}},"Setup"),h("button",{style:{background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",color:"var(--text2)",cursor:"pointer",fontSize:"16px",lineHeight:1,padding:"2px 8px"},onClick:()=>S({showSetup:false})},"×")));
     sp.appendChild(inp(cfg.shopifyDomain||"",v=>{st.cfg.shopifyDomain=v},"Shopify domain slug"));
     sp.appendChild(h("div",{style:{height:"6px"}}));
     sp.appendChild(inp(cfg.storeUrl||"",v=>{st.cfg.storeUrl=v},"Store URL (https://...)"));
@@ -1478,7 +1478,7 @@ function render(){
   frag.appendChild(main);
 
   // Tab bar
-  const tb=h("div",{className:"tb",style:{position:"fixed"}});TABS.forEach(t=>{tb.appendChild(h("button",{style:{color:tab===t.id?"#8b5cf6":"var(--text3)"},onClick:()=>S({tab:t.id})},h("span",{style:{fontSize:"18px",fontWeight:800,fontFamily:"'Space Mono',monospace"}},t.icon),h("span",{style:{fontSize:"12px",fontFamily:"'DM Sans'",fontWeight:tab===t.id?700:500}},t.label)))});tb.appendChild(h("button",{style:{position:"absolute",right:"8px",top:"50%",transform:"translateY(-50%)",background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",cursor:"pointer",fontSize:"16px",color:"var(--text2)",padding:"4px 8px"},onClick:()=>{const d=!st.dark;localStorage.setItem("bpn-dark",d?"true":"false");S({dark:d})}},st.dark?"☀":"🌙"));frag.appendChild(tb);
+  const tb=h("div",{className:"tb",style:{position:"fixed"}});TABS.forEach(t=>{tb.appendChild(h("button",{style:{color:tab===t.id?"#8b5cf6":"var(--text3)"},onClick:()=>S({tab:t.id})},h("span",{style:{fontSize:"20px",lineHeight:1}},t.icon),h("span",{style:{fontSize:"12px",fontFamily:"'DM Sans'",fontWeight:tab===t.id?700:500}},t.label)))});tb.appendChild(h("button",{style:{position:"absolute",right:"8px",top:"50%",transform:"translateY(-50%)",background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",cursor:"pointer",fontSize:"16px",color:"var(--text2)",padding:"4px 8px"},onClick:()=>{const d=!st.dark;localStorage.setItem("bpn-dark",d?"true":"false");S({dark:d})}},st.dark?"☀":"🌙"));frag.appendChild(tb);
 
   app.appendChild(frag);
 }
