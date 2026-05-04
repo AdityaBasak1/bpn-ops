@@ -973,8 +973,19 @@ function render(){
     edgeLabel.appendChild(edgeChk);
     edgeLabel.appendChild(h("span",null,"Shopify Edge Functions deployed (enable after setup)"));
     sp.appendChild(edgeLabel);
-    sp.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginTop:"2px",marginLeft:"22px"}},"Unlocks 'Create Draft in Shopify' and order auto-sync. See SHOPIFY-SETUP.md."));
-    sp.appendChild(btn("Save",()=>{setCfgLocal(st.cfg);S({showSetup:false})}));
+    sp.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginTop:"2px",marginLeft:"22px",marginBottom:"8px",lineHeight:"1.4"}},"Unlocks 'Create Draft in Shopify' and order auto-sync."));
+    if(st.isTeamAdmin){
+      let shopifyToken="";
+      sp.appendChild(h("div",{style:{fontSize:"12px",fontWeight:700,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"1px",marginTop:"8px",marginBottom:"6px"}},"Shopify Access Token"));
+      sp.appendChild(inp("",v=>{shopifyToken=v},"Paste token to update (Admin only)","password",{marginBottom:"4px"}));
+      sp.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"6px",lineHeight:"1.4"}},"In Shopify Admin → Apps → Develop apps → Create app → Admin API access token. Needs read_orders + write_products scopes."));
+      sp.appendChild(btn("Save Shopify Token",async()=>{
+        if(!shopifyToken.trim()){alert("Paste your Shopify access token first.");return}
+        const{error}=await sb.rpc("set_team_shopify_secret",{p_team_id:st.teamId,p_domain:cfg.shopifyDomain||"",p_token:shopifyToken.trim()});
+        if(error){alert("Error saving token: "+error.message)}else{st.cfg.shopifyEdgeConfigured=true;setCfgLocal(st.cfg);alert("Shopify token saved. Edge functions are now active.")}
+      },"#22c55e"));
+    }
+    sp.appendChild(btn("Save Settings",()=>{setCfgLocal(st.cfg);S({showSetup:false})}));
 
     // ─── Team LLM Key (shared, server-side) ───
     const teamLLMBox=h("div",{style:{marginTop:"14px",padding:"10px",background:"rgba(139,92,246,.06)",borderRadius:"6px",border:"1px solid rgba(139,92,246,.18)"}});
