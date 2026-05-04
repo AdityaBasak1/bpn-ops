@@ -64,7 +64,7 @@ const SOURCES=["TikTok Creative Center","Google Trends","Reddit","Meta Ad Librar
 const CATS=["Apparel","Accessories","Collectibles","Books","Games","Home","Tech","Food","Fitness","Other"];
 const DIMS=[{key:"signal",label:"Signal Strength",desc:"How many sources confirm?"},{key:"audience",label:"Audience Fit",desc:"Does the podcast tribe want this?"},{key:"speed",label:"Production Speed",desc:"Live in under 24h?"},{key:"margin",label:"Margin Potential",desc:"Above 20% gross?"},{key:"halflife",label:"Moment Half-life",desc:"Days of relevance?"}];
 const PLATS=["IG Reel","IG Story","IG Carousel","TikTok","Podcast Clip","Email"];
-const TABS=[{id:"today",icon:"house",label:"Today"},{id:"radar",icon:"radar",label:"Radar"},{id:"promos",icon:"star",label:"Promos"},{id:"drops",icon:"package",label:"Drops"},{id:"content",icon:"pencil",label:"Content"},{id:"money",icon:"chart-bar",label:"P+L"},{id:"hub",icon:"link",label:"Hub"}];
+const TABS=[{id:"today",icon:"house",label:"Today"},{id:"radar",icon:"broadcast",label:"Radar"},{id:"promos",icon:"star",label:"Promos"},{id:"drops",icon:"package",label:"Drops"},{id:"content",icon:"pencil",label:"Content"},{id:"money",icon:"chart-bar",label:"P+L"},{id:"hub",icon:"link",label:"Hub"}];
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function fmtD(ts){return new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
