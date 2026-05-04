@@ -96,7 +96,7 @@ let st={
   teamInput:"", teamNameInput:"",
   isTeamAdmin:false, teamLLM:{hasKey:false,provider:"groq"},
   wiz:{step:0,key:"",provider:"groq"},
-  dark:localStorage.getItem("bpn-dark")!=="false",
+  dark:localStorage.getItem("bpn-dark")==="true",
 };
 function S(c){Object.assign(st,c);render()}
 
