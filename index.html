@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="var(--bg)">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 html{--bg:#0c1322;--bg2:#1e293b;--text:#e2e8f0;--text-h:#f1f5f9;--text2:#94a3b8;--text3:#475569;--text4:#64748b;--border:#334155;--btn-text:#0f172a;--accent-text:#c4b5fd;--s1:rgba(255,255,255,.03);--s2:rgba(255,255,255,.04);--s3:rgba(255,255,255,.05);--s4:rgba(255,255,255,.06);--s5:rgba(255,255,255,.08)}
@@ -62,7 +64,7 @@ const SOURCES=["TikTok Creative Center","Google Trends","Reddit","Meta Ad Librar
 const CATS=["Apparel","Accessories","Collectibles","Books","Games","Home","Tech","Food","Fitness","Other"];
 const DIMS=[{key:"signal",label:"Signal Strength",desc:"How many sources confirm?"},{key:"audience",label:"Audience Fit",desc:"Does the podcast tribe want this?"},{key:"speed",label:"Production Speed",desc:"Live in under 24h?"},{key:"margin",label:"Margin Potential",desc:"Above 20% gross?"},{key:"halflife",label:"Moment Half-life",desc:"Days of relevance?"}];
 const PLATS=["IG Reel","IG Story","IG Carousel","TikTok","Podcast Clip","Email"];
-const TABS=[{id:"today",icon:"⚡",label:"Today"},{id:"radar",icon:"🔍",label:"Radar"},{id:"promos",icon:"★",label:"Promos"},{id:"drops",icon:"📦",label:"Drops"},{id:"content",icon:"✏",label:"Content"},{id:"money",icon:"📊",label:"P+L"},{id:"hub",icon:"🔗",label:"Hub"}];
+const TABS=[{id:"today",icon:"house",label:"Today"},{id:"radar",icon:"radar",label:"Radar"},{id:"promos",icon:"star",label:"Promos"},{id:"drops",icon:"package",label:"Drops"},{id:"content",icon:"pencil",label:"Content"},{id:"money",icon:"chart-bar",label:"P+L"},{id:"hub",icon:"link",label:"Hub"}];
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function fmtD(ts){return new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
@@ -945,14 +947,14 @@ function render(){
     h("div",{style:{marginLeft:"auto",display:"flex",gap:"6px",alignItems:"center"}},
       hot.length>0?h("span",{style:{background:"#22c55e22",color:"#22c55e",fontSize:"11px",fontWeight:700,padding:"2px 7px",borderRadius:"20px"}},hot.length+" HOT"):null,
       h("span",{style:{background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.3)",borderRadius:"6px",fontSize:"11px",color:"#22c55e",fontWeight:700,padding:"4px 8px"}},"SYNCED"),
-      h("button",{style:{background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",color:"var(--text4)",cursor:"pointer",fontSize:"16px",lineHeight:1,padding:"4px 8px"},onClick:()=>S({showSetup:!showSetup})},"⚙"),
+      h("button",{style:{background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",color:"var(--text4)",cursor:"pointer",fontSize:"16px",lineHeight:1,padding:"4px 8px"},onClick:()=>S({showSetup:!showSetup})},h("i",{className:showSetup?"ph-fill ph-gear":"ph ph-gear",style:{fontSize:"18px",display:"block"}})),
       h("button",{style:{background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",color:"var(--text3)",cursor:"pointer",fontSize:"12px",padding:"4px 8px"},onClick:signOut},"Sign out")
     )
   ));
 
   if(showSetup){
     const sp=h("div",{style:{padding:"14px",background:"rgba(139,92,246,.06)",borderBottom:"1px solid var(--s4)"}});
-    sp.appendChild(h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px"}},h("div",{style:{fontSize:"14px",fontWeight:700,color:"var(--text)"}},"Setup"),h("button",{style:{background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",color:"var(--text2)",cursor:"pointer",fontSize:"16px",lineHeight:1,padding:"2px 8px"},onClick:()=>S({showSetup:false})},"×")));
+    sp.appendChild(h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px"}},h("div",{style:{fontSize:"14px",fontWeight:700,color:"var(--text)"}},"Setup"),h("button",{style:{background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",color:"var(--text2)",cursor:"pointer",fontSize:"16px",lineHeight:1,padding:"2px 8px"},onClick:()=>S({showSetup:false})},h("i",{className:"ph ph-x",style:{fontSize:"16px",display:"block"}}))));
     sp.appendChild(inp(cfg.shopifyDomain||"",v=>{st.cfg.shopifyDomain=v},"Shopify domain slug"));
     sp.appendChild(h("div",{style:{height:"6px"}}));
     sp.appendChild(inp(cfg.storeUrl||"",v=>{st.cfg.storeUrl=v},"Store URL (https://...)"));
@@ -1496,7 +1498,7 @@ function render(){
   frag.appendChild(main);
 
   // Tab bar
-  const tb=h("div",{className:"tb",style:{position:"fixed"}});TABS.forEach(t=>{tb.appendChild(h("button",{style:{color:tab===t.id?"#8b5cf6":"var(--text3)"},onClick:()=>S({tab:t.id})},h("span",{style:{fontSize:"20px",lineHeight:1}},t.icon),h("span",{style:{fontSize:"12px",fontFamily:"'DM Sans'",fontWeight:tab===t.id?700:500}},t.label)))});tb.appendChild(h("button",{style:{position:"absolute",right:"8px",top:"50%",transform:"translateY(-50%)",background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",cursor:"pointer",fontSize:"16px",color:"var(--text2)",padding:"4px 8px"},onClick:()=>{const d=!st.dark;localStorage.setItem("bpn-dark",d?"true":"false");S({dark:d})}},st.dark?"☀":"🌙"));frag.appendChild(tb);
+  const tb=h("div",{className:"tb",style:{position:"fixed"}});TABS.forEach(t=>{tb.appendChild(h("button",{style:{color:tab===t.id?"#8b5cf6":"var(--text3)"},onClick:()=>S({tab:t.id})},h("i",{className:(tab===t.id?"ph-fill ":"ph ")+"ph-"+t.icon,style:{fontSize:"22px"}}),h("span",{style:{fontSize:"11px",fontFamily:"'DM Sans'",fontWeight:tab===t.id?700:500}},t.label)))});tb.appendChild(h("button",{style:{position:"absolute",right:"8px",top:"50%",transform:"translateY(-50%)",background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",cursor:"pointer",fontSize:"16px",color:"var(--text2)",padding:"4px 8px"},onClick:()=>{const d=!st.dark;localStorage.setItem("bpn-dark",d?"true":"false");S({dark:d})}},st.dark?"☀":"🌙"));frag.appendChild(tb);
 
   app.appendChild(frag);
 }

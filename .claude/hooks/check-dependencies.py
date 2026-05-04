@@ -161,7 +161,11 @@ def main():
     classes_used    = set()
     for cn in raw_classnames:
         classes_used.update(cn.split())  # handle multi-class strings
+    # Classes provided by CDN stylesheets (Phosphor Icons, etc.) — not in local <style>
+    CDN_CLASS_PREFIXES = ("ph", "ph-fill", "ti", "lucide")
     for c in sorted(classes_used - classes_defined):
+        if any(c == p or c.startswith(p + "-") for p in CDN_CLASS_PREFIXES):
+            continue  # provided by CDN stylesheet, not a local rule
         warnings.append(
             f"[CSS] className:\"{c}\" used in JS but .{c} has no CSS rule (unstyled element)"
         )
