@@ -926,7 +926,7 @@ function render(){
     h("div",{style:{marginLeft:"auto",display:"flex",gap:"6px",alignItems:"center"}},
       hot.length>0?h("span",{style:{background:"#22c55e22",color:"#22c55e",fontSize:"9px",fontWeight:700,padding:"2px 7px",borderRadius:"20px"}},hot.length+" HOT"):null,
       h("span",{style:{fontSize:"9px",color:"#22c55e",fontWeight:600}},"SYNCED"),
-      h("button",{style:{background:"none",border:"none",color:"var(--text4)",cursor:"pointer",fontSize:"18px",lineHeight:1},onClick:()=>S({showSetup:!showSetup})},"⚙"),
+      h("button",{style:{background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",color:"var(--text4)",cursor:"pointer",fontSize:"16px",lineHeight:1,padding:"4px 8px"},onClick:()=>S({showSetup:!showSetup})},"⚙"),
       h("button",{style:{background:"none",border:"none",color:"var(--text3)",cursor:"pointer",fontSize:"10px"},onClick:signOut},"out")
     )
   ));
@@ -1477,7 +1477,7 @@ function render(){
   frag.appendChild(main);
 
   // Tab bar
-  const tb=h("div",{className:"tb",style:{position:"fixed"}});TABS.forEach(t=>{tb.appendChild(h("button",{style:{color:tab===t.id?"#8b5cf6":"var(--text3)"},onClick:()=>S({tab:t.id})},h("span",{style:{fontSize:"14px",fontWeight:800,fontFamily:"'Space Mono',monospace"}},t.icon),h("span",{style:{fontSize:"8px",fontFamily:"'DM Sans'",fontWeight:tab===t.id?700:500}},t.label)))});tb.appendChild(h("button",{style:{position:"absolute",right:"8px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:"18px",color:"var(--text2)",padding:"4px"},onClick:()=>{const d=!st.dark;localStorage.setItem("bpn-dark",d?"true":"false");S({dark:d})}},st.dark?"☀":"🌙"));frag.appendChild(tb);
+  const tb=h("div",{className:"tb",style:{position:"fixed"}});TABS.forEach(t=>{tb.appendChild(h("button",{style:{color:tab===t.id?"#8b5cf6":"var(--text3)"},onClick:()=>S({tab:t.id})},h("span",{style:{fontSize:"18px",fontWeight:800,fontFamily:"'Space Mono',monospace"}},t.icon),h("span",{style:{fontSize:"10px",fontFamily:"'DM Sans'",fontWeight:tab===t.id?700:500}},t.label)))});tb.appendChild(h("button",{style:{position:"absolute",right:"8px",top:"50%",transform:"translateY(-50%)",background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",cursor:"pointer",fontSize:"16px",color:"var(--text2)",padding:"4px 8px"},onClick:()=>{const d=!st.dark;localStorage.setItem("bpn-dark",d?"true":"false");S({dark:d})}},st.dark?"☀":"🌙"));frag.appendChild(tb);
 
   app.appendChild(frag);
 }
