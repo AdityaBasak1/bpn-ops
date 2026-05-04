@@ -11,7 +11,9 @@
       "Bash(supabase functions deploy:*)",
       "Bash(supabase db push)",
       "Bash(wc -l:*)",
-      "Bash(grep:*)"
-    ]
+      "Bash(grep:*)",
+      "mcp__playwright"
+    ],
+    "deny": []
   }
 }
