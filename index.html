@@ -763,7 +763,7 @@ function render(){
   if(st.screen==="auth"){
     const box=h("div",{className:"auth-wrap"});
     const card=h("div",{className:"auth-box"});
-    card.appendChild(h("div",{style:{textAlign:"center",marginBottom:"24px"}},h("img",{src:"https://i.scdn.co/image/ab67656300005f1f9fb97df4ef3cff7e2f82c54b",style:{width:"72px",height:"72px",borderRadius:"50%",border:"2px solid #8b5cf6",display:"block",margin:"0 auto 12px"}}),h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"28px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),h("div",{style:{color:"var(--text4)",fontSize:"14px",marginTop:"4px"}},"Football Moment Commerce")));
+    card.appendChild(h("div",{style:{textAlign:"center",marginBottom:"24px"}},h("img",{src:"assets/logo.png",style:{width:"72px",height:"72px",borderRadius:"50%",border:"2px solid #8b5cf6",display:"block",margin:"0 auto 12px"}}),h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"28px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),h("div",{style:{color:"var(--text4)",fontSize:"14px",marginTop:"4px"}},"Football Moment Commerce")));
     let email="",pass="";
     card.appendChild(inp("",v=>email=v,"Email address","text",{marginBottom:"8px"}));
     card.appendChild(inp("",v=>pass=v,"Password","password",{marginBottom:"4px"}));
@@ -921,7 +921,7 @@ function render(){
 
   // Header
   frag.appendChild(h("div",{style:{padding:"10px 14px",borderBottom:"1px solid var(--s4)",display:"flex",alignItems:"center",gap:"8px"}},
-    h("img",{src:"https://i.scdn.co/image/ab67656300005f1f9fb97df4ef3cff7e2f82c54b",style:{width:"28px",height:"28px",borderRadius:"50%",border:"1px solid #8b5cf6",flexShrink:0}}),
+    h("img",{src:"assets/logo.png",style:{width:"28px",height:"28px",borderRadius:"50%",border:"1px solid #8b5cf6",flexShrink:0}}),
     h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"16px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),
     h("div",{style:{fontSize:"11px",color:"var(--text3)"}},st.teamName||""),
     h("div",{style:{marginLeft:"auto",display:"flex",gap:"6px",alignItems:"center"}},
