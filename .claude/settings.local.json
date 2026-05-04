@@ -24,6 +24,10 @@
           {
             "type": "command",
             "command": "python3 /Users/adityabasak/Desktop/Dropshipping/bpn-ops/.claude/hooks/validate-app.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 /Users/adityabasak/Desktop/Dropshipping/bpn-ops/.claude/hooks/check-dependencies.py"
           }
         ]
       }
