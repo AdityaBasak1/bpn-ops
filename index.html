@@ -9,8 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-html{--bg:#0c1322;--bg2:#1e293b;--text:#e2e8f0;--text-h:#f1f5f9;--text2:#94a3b8;--text3:#475569;--text4:#64748b;--border:#334155;--btn-text:#0f172a;--s1:rgba(255,255,255,.03);--s2:rgba(255,255,255,.04);--s3:rgba(255,255,255,.05);--s4:rgba(255,255,255,.06);--s5:rgba(255,255,255,.08)}
-html[data-theme="light"]{--bg:#f8fafc;--bg2:#f1f5f9;--text:#0f172a;--text-h:#0f172a;--text2:#334155;--text3:#475569;--text4:#374151;--border:#cbd5e1;--btn-text:#ffffff;--s1:rgba(0,0,0,.04);--s2:rgba(0,0,0,.05);--s3:rgba(0,0,0,.04);--s4:rgba(0,0,0,.08);--s5:rgba(0,0,0,.06)}
+html{--bg:#0c1322;--bg2:#1e293b;--text:#e2e8f0;--text-h:#f1f5f9;--text2:#94a3b8;--text3:#475569;--text4:#64748b;--border:#334155;--btn-text:#0f172a;--accent-text:#c4b5fd;--s1:rgba(255,255,255,.03);--s2:rgba(255,255,255,.04);--s3:rgba(255,255,255,.05);--s4:rgba(255,255,255,.06);--s5:rgba(255,255,255,.08)}
+html[data-theme="light"]{--bg:#f8fafc;--bg2:#f1f5f9;--text:#0f172a;--text-h:#0f172a;--text2:#334155;--text3:#475569;--text4:#374151;--border:#cbd5e1;--btn-text:#ffffff;--accent-text:#6d28d9;--s1:rgba(0,0,0,.05);--s2:rgba(0,0,0,.06);--s3:rgba(0,0,0,.05);--s4:rgba(0,0,0,.12);--s5:rgba(0,0,0,.09)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased}
 input,textarea,select,button{font-family:'DM Sans',sans-serif}
@@ -746,7 +746,7 @@ async function importTikTokCSVText(text){
 
 // ─── DOM helpers ───
 function h(tag,attrs,...ch){const el=document.createElement(tag);if(attrs)Object.entries(attrs).forEach(([k,v])=>{if(k==="style"&&typeof v==="object")Object.assign(el.style,v);else if(k.startsWith("on"))el.addEventListener(k.slice(2).toLowerCase(),v);else if(k==="className")el.className=v;else if(k==="innerHTML")el.innerHTML=v;else if(["value","placeholder","type","rows","min","max","href","target","rel","disabled","checked"].includes(k))el[k]=v;else el.setAttribute(k,v)});ch.flat(9).forEach(c=>{if(c!=null&&c!==false)el.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(String(c)):c)});return el}
-function lnk(item){return h("a",{href:item.url,target:"_blank",rel:"noopener noreferrer",className:"lc"},h("div",{style:{fontSize:"14px",fontWeight:600,color:"#c4b5fd"}},item.label+" >"),h("div",{style:{fontSize:"12px",color:"var(--text4)",marginTop:"1px"}},item.desc))}
+function lnk(item){return h("a",{href:item.url,target:"_blank",rel:"noopener noreferrer",className:"lc"},h("div",{style:{fontSize:"14px",fontWeight:600,color:"var(--accent-text)"}},item.label+" >"),h("div",{style:{fontSize:"12px",color:"var(--text4)",marginTop:"1px"}},item.desc))}
 function met(label,val,color="var(--text)"){return h("div",{className:"mt"},h("div",{style:{fontSize:"20px",fontWeight:800,fontFamily:"'Space Mono',monospace",color}},val),h("div",{style:{fontSize:"10px",color:"var(--text4)",marginTop:"2px",textTransform:"uppercase",letterSpacing:"0.5px"}},label))}
 function sec(title,fn,collapse=false){let open=!collapse;const w=h("div",{style:{marginBottom:"14px"}});const cd=h("div",{style:{marginTop:"6px",display:open?"block":"none"}});const ar=h("span",{style:{fontSize:"9px",transform:open?"rotate(90deg)":"none",transition:"0.15s",display:"inline-block"}},">"); const btn=h("button",{className:"sh",onClick:()=>{open=!open;cd.style.display=open?"block":"none";ar.style.transform=open?"rotate(90deg)":"none"}},ar,title);fn(cd);w.appendChild(btn);w.appendChild(cd);return w}
 function inp(value,onChange,ph,type="text",sx={}){return h("input",{className:"i",type,value:String(value),placeholder:ph,style:sx,onInput:e=>onChange(type==="number"?Number(e.target.value)||0:e.target.value)})}
@@ -763,7 +763,7 @@ function render(){
   if(st.screen==="auth"){
     const box=h("div",{className:"auth-wrap"});
     const card=h("div",{className:"auth-box"});
-    card.appendChild(h("div",{style:{textAlign:"center",marginBottom:"24px"}},h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"28px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),h("div",{style:{color:"var(--text4)",fontSize:"14px",marginTop:"4px"}},"Football Moment Commerce")));
+    card.appendChild(h("div",{style:{textAlign:"center",marginBottom:"24px"}},h("img",{src:"https://i.scdn.co/image/ab67656300005f1f9fb97df4ef3cff7e2f82c54b",style:{width:"72px",height:"72px",borderRadius:"50%",border:"2px solid #8b5cf6",display:"block",margin:"0 auto 12px"}}),h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"28px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),h("div",{style:{color:"var(--text4)",fontSize:"14px",marginTop:"4px"}},"Football Moment Commerce")));
     let email="",pass="";
     card.appendChild(inp("",v=>email=v,"Email address","text",{marginBottom:"8px"}));
     card.appendChild(inp("",v=>pass=v,"Password","password",{marginBottom:"4px"}));
@@ -920,19 +920,20 @@ function render(){
   const frag=document.createDocumentFragment();
 
   // Header
-  frag.appendChild(h("div",{style:{padding:"10px 14px",borderBottom:"1px solid rgba(255,255,255,.06)",display:"flex",alignItems:"center",gap:"8px"}},
+  frag.appendChild(h("div",{style:{padding:"10px 14px",borderBottom:"1px solid var(--s4)",display:"flex",alignItems:"center",gap:"8px"}},
+    h("img",{src:"https://i.scdn.co/image/ab67656300005f1f9fb97df4ef3cff7e2f82c54b",style:{width:"28px",height:"28px",borderRadius:"50%",border:"1px solid #8b5cf6",flexShrink:0}}),
     h("div",{style:{fontFamily:"'Space Mono',monospace",fontSize:"16px",fontWeight:700,color:"#8b5cf6"}},"BlueDrop Shop"),
     h("div",{style:{fontSize:"11px",color:"var(--text3)"}},st.teamName||""),
     h("div",{style:{marginLeft:"auto",display:"flex",gap:"6px",alignItems:"center"}},
       hot.length>0?h("span",{style:{background:"#22c55e22",color:"#22c55e",fontSize:"11px",fontWeight:700,padding:"2px 7px",borderRadius:"20px"}},hot.length+" HOT"):null,
       h("span",{style:{background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.3)",borderRadius:"6px",fontSize:"11px",color:"#22c55e",fontWeight:700,padding:"4px 8px"}},"SYNCED"),
       h("button",{style:{background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",color:"var(--text4)",cursor:"pointer",fontSize:"16px",lineHeight:1,padding:"4px 8px"},onClick:()=>S({showSetup:!showSetup})},"⚙"),
-      h("button",{style:{background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",color:"var(--text3)",cursor:"pointer",fontSize:"12px",padding:"4px 8px"},onClick:signOut},"out")
+      h("button",{style:{background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"6px",color:"var(--text3)",cursor:"pointer",fontSize:"12px",padding:"4px 8px"},onClick:signOut},"Sign out")
     )
   ));
 
   if(showSetup){
-    const sp=h("div",{style:{padding:"14px",background:"rgba(139,92,246,.06)",borderBottom:"1px solid rgba(255,255,255,.06)"}});
+    const sp=h("div",{style:{padding:"14px",background:"rgba(139,92,246,.06)",borderBottom:"1px solid var(--s4)"}});
     sp.appendChild(h("div",{style:{fontSize:"14px",fontWeight:700,color:"var(--text)",marginBottom:"8px"}},"Setup"));
     sp.appendChild(inp(cfg.shopifyDomain||"",v=>{st.cfg.shopifyDomain=v},"Shopify domain slug"));
     sp.appendChild(h("div",{style:{height:"6px"}}));
@@ -982,7 +983,7 @@ function render(){
     sp.appendChild(teamLLMBox);
 
     // ─── Personal LLM key (legacy fallback) ───
-    const llmBox=h("div",{style:{marginTop:"10px",padding:"10px",background:"rgba(255,255,255,.02)",borderRadius:"6px",border:"1px solid rgba(255,255,255,.06)"}});
+    const llmBox=h("div",{style:{marginTop:"10px",padding:"10px",background:"var(--s1)",borderRadius:"6px",border:"1px solid var(--s4)"}});
     llmBox.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:"var(--text2)",marginBottom:"4px"}},"Personal AI Key (fallback)"));
     llmBox.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text4)",marginBottom:"8px",lineHeight:"1.5"}},"Used only when no team key is set. Stored on this device."));
     const provSel=sel(getLLMProvider(),v=>{setLLMProvider(v)},["groq","openai","anthropic"],null,{marginBottom:"6px"});
@@ -1051,7 +1052,7 @@ function render(){
     const totalSales=st.promos.reduce((a,p)=>a+(Number(p.sales)||0),0);
     const activeDrops=st.drops.filter(d=>d.status==="active").length;
     [["£"+totalRev.toFixed(0),"Total","#22c55e"],[String(totalSales),"Sales","#8b5cf6"],[String(activeDrops),"Active","#f59e0b"]].forEach(([v,l,c])=>{
-      kpiRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",border:"1px solid rgba(255,255,255,.06)",textAlign:"center"}},
+      kpiRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",border:"1px solid var(--s4)",textAlign:"center"}},
         h("div",{style:{fontSize:"18px",fontWeight:800,color:c}},v),
         h("div",{style:{fontSize:"11px",color:"var(--text4)",textTransform:"uppercase",letterSpacing:"0.5px"}},l)
       ));
@@ -1132,7 +1133,7 @@ function render(){
                 h("div",{style:{fontSize:"13px",fontWeight:600,color:"var(--text)"}},p.name),
                 p.desc?h("div",{style:{fontSize:"11px",color:"var(--text4)",marginTop:"1px",lineHeight:"1.4"}},p.desc):null,
                 h("div",{style:{display:"flex",gap:"6px",marginTop:"4px",alignItems:"center",flexWrap:"wrap"}},
-                  h("span",{style:{fontSize:"11px",background:"rgba(139,92,246,.15)",color:"#c4b5fd",padding:"1px 6px",borderRadius:"8px"}},p.category),
+                  h("span",{style:{fontSize:"11px",background:"rgba(139,92,246,.15)",color:"var(--accent-text)",padding:"1px 6px",borderRadius:"8px"}},p.category),
                   h("span",{style:{fontSize:"11px",color:"var(--text2)"}},"~£"+p.price)
                 )
               ),
@@ -1146,7 +1147,7 @@ function render(){
             linkRow.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.5px",width:"100%",marginBottom:"3px"}},"Find live product:"));
             searches.forEach(l=>{
               const isPrimary=l.primary;
-              linkRow.appendChild(h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer",title:l.desc,style:{display:"inline-block",padding:"3px 8px",background:isPrimary?"rgba(255,0,79,.12)":"rgba(139,92,246,.08)",color:isPrimary?"#ff6b94":"#c4b5fd",fontSize:"12px",fontWeight:600,borderRadius:"3px",textDecoration:"none",border:"1px solid "+(isPrimary?"rgba(255,0,79,.25)":"rgba(139,92,246,.15)")}},l.label+" ↗"));
+              linkRow.appendChild(h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer",title:l.desc,style:{display:"inline-block",padding:"3px 8px",background:isPrimary?"rgba(255,0,79,.12)":"rgba(139,92,246,.08)",color:isPrimary?"#ff6b94":"var(--accent-text)",fontSize:"12px",fontWeight:600,borderRadius:"3px",textDecoration:"none",border:"1px solid "+(isPrimary?"rgba(255,0,79,.25)":"rgba(139,92,246,.15)")}},l.label+" ↗"));
             });
             prodCard.appendChild(linkRow);
             pWrap.appendChild(prodCard);
@@ -1155,13 +1156,13 @@ function render(){
         } else {
           // No products yet — still offer manual score
           card.appendChild(h("div",{style:{padding:"0 10px 8px"}},
-            h("button",{style:{background:"#8b5cf622",border:"1px solid #8b5cf6",color:"#c4b5fd",fontSize:"12px",fontWeight:600,padding:"5px 10px",borderRadius:"4px",cursor:"pointer",width:"100%"},onClick:()=>autoToScore(s)},"Score manually >")
+            h("button",{style:{background:"#8b5cf622",border:"1px solid #8b5cf6",color:"var(--accent-text)",fontSize:"12px",fontWeight:600,padding:"5px 10px",borderRadius:"4px",cursor:"pointer",width:"100%"},onClick:()=>autoToScore(s)},"Score manually >")
           ));
         }
         div.appendChild(card);
       });
     }));
-    if(restA.length>0)main.appendChild(sec("Football Watch ("+restA.length+")",div=>{restA.forEach(s=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"6px",padding:"5px 8px",borderLeft:"2px solid #334155",marginBottom:"3px",borderRadius:"3px"}},h("span",{style:{flex:"1",fontSize:"13px",color:"var(--text2)",lineHeight:"1.3"}},s.keyword),h("span",{style:{fontWeight:700,fontSize:"14px",color:"var(--text4)"}},String(s.velocity)),h("button",{style:{background:"#8b5cf622",border:"none",color:"#c4b5fd",fontSize:"10px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>autoToScore(s)},"Score >")))})},true));
+    if(restA.length>0)main.appendChild(sec("Football Watch ("+restA.length+")",div=>{restA.forEach(s=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"6px",padding:"5px 8px",borderLeft:"2px solid #334155",marginBottom:"3px",borderRadius:"3px"}},h("span",{style:{flex:"1",fontSize:"13px",color:"var(--text2)",lineHeight:"1.3"}},s.keyword),h("span",{style:{fontWeight:700,fontSize:"14px",color:"var(--text4)"}},String(s.velocity)),h("button",{style:{background:"#8b5cf622",border:"none",color:"var(--accent-text)",fontSize:"10px",fontWeight:600,padding:"2px 7px",borderRadius:"3px",cursor:"pointer"},onClick:()=>autoToScore(s)},"Score >")))})},true));
     if(autoSignals.length===0&&!st.scanning)main.appendChild(h("div",{style:{textAlign:"center",padding:"16px",color:"var(--text3)",border:"1px dashed #334155",borderRadius:"8px",marginBottom:"14px",fontSize:"14px"}},"Hit Scan Now to pull trending football topics"));
 
     // ═══ TikTok Shop Bestsellers (manual scan) ═══
@@ -1182,7 +1183,7 @@ function render(){
       const g=h("div",{className:"g2"});
       tsLinks.forEach(l=>{
         const a=h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer",style:{display:"block",padding:"8px 10px",background:l.primary?"rgba(255,0,79,.1)":"rgba(139,92,246,.06)",border:"1px solid "+(l.primary?"rgba(255,0,79,.25)":"rgba(139,92,246,.15)"),borderRadius:"5px",textDecoration:"none"}});
-        a.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:l.primary?"#ff6b94":"#c4b5fd"}},l.label+" ↗"));
+        a.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:l.primary?"#ff6b94":"var(--accent-text)"}},l.label+" ↗"));
         a.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text4)",marginTop:"1px"}},l.desc));
         g.appendChild(a);
       });
@@ -1281,7 +1282,7 @@ function render(){
 
       if(winners.length>0||losers.length>0||topCats.length>0){
         main.appendChild(h("div",{style:{padding:"10px 12px",background:"linear-gradient(135deg,rgba(139,92,246,.08),rgba(255,0,79,.05))",borderRadius:"8px",marginBottom:"14px",border:"1px solid rgba(139,92,246,.15)"}},
-          h("div",{style:{fontSize:"12px",fontWeight:800,color:"#c4b5fd",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"10px"}},"📊 Insights"),
+          h("div",{style:{fontSize:"12px",fontWeight:800,color:"var(--accent-text)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"10px"}},"📊 Insights"),
           // Winners
           winners.length>0?h("div",{style:{marginBottom:"10px"}},
             h("div",{style:{fontSize:"12px",fontWeight:700,color:"#22c55e",marginBottom:"4px"}},"🏆 Top Performers"),
@@ -1331,7 +1332,7 @@ function render(){
         const age=daysAgo(p.ts);
         const cvr=(Number(p.clicks)||0)>0?((Number(p.sales)||0)/p.clicks*100).toFixed(1):"—";
         const sCol={posted:"#8b5cf6","pending-sale":"#f59e0b",earned:"#22c55e",dud:"var(--text4)"}[p.status]||"var(--text4)";
-        const card=h("div",{style:{background:"var(--s1)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid "+sCol,border:"1px solid rgba(255,255,255,.06)"}});
+        const card=h("div",{style:{background:"var(--s1)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid "+sCol,border:"1px solid var(--s4)"}});
         card.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
           h("div",{style:{flex:"1",minWidth:0}},
             h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"15px"}},p.productName),
@@ -1350,7 +1351,7 @@ function render(){
         card.appendChild(tg);
         // Video URL input
         const vidRow=h("div",{style:{marginTop:"6px"}});
-        vidRow.appendChild(h("input",{type:"text",placeholder:"TikTok/IG video URL (optional)",value:p.videoUrl||"",style:{width:"100%",padding:"5px 8px",borderRadius:"4px",border:"1px solid #334155",background:"var(--s3)",color:"#c4b5fd",fontSize:"12px",boxSizing:"border-box"},onInput:e=>updPromo(p.id,{videoUrl:e.target.value})}));
+        vidRow.appendChild(h("input",{type:"text",placeholder:"TikTok/IG video URL (optional)",value:p.videoUrl||"",style:{width:"100%",padding:"5px 8px",borderRadius:"4px",border:"1px solid #334155",background:"var(--s3)",color:"var(--accent-text)",fontSize:"12px",boxSizing:"border-box"},onInput:e=>updPromo(p.id,{videoUrl:e.target.value})}));
         card.appendChild(vidRow);
         // Footer: CVR + status buttons
         card.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"8px"}},
@@ -1377,7 +1378,7 @@ function render(){
     f.appendChild(h("div",{style:{display:"flex",gap:"6px",marginTop:"6px"}},sel(df.category,v=>{st.df.category=v},CATS,null,{flex:"2"}),inp(df.price,v=>{st.df.price=v;render()},"Price","number",{flex:"1"}),inp(df.cost,v=>{st.df.cost=v;render()},"Cost","number",{flex:"1"})));
     f.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text4)",margin:"3px 0 10px",textAlign:"right"},innerHTML:"Margin: <b style='color:"+(marginPct>=20?"#22c55e":"#ef4444")+"'>"+marginPct+"%</b>"}));
     DIMS.forEach(dim=>{const d=h("div",{style:{marginBottom:"10px"}});d.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between"}},h("span",{style:{fontWeight:600,color:"var(--text)",fontSize:"13px"}},dim.label),h("span",{style:{color:scCol[df.scores[dim.key]],fontWeight:800}},String(df.scores[dim.key]))));d.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"3px"}},dim.desc));const bs=h("div",{style:{display:"flex",gap:"5px"}});[0,1,2].forEach(v=>{const c=scCol[v],sl=df.scores[dim.key]===v;bs.appendChild(h("button",{style:{flex:"1",height:"28px",border:"2px solid "+(sl?c:"var(--border)"),borderRadius:"5px",background:sl?c+"22":"transparent",color:sl?c:"var(--text3)",fontWeight:700,cursor:"pointer"},onClick:()=>{st.df.scores[dim.key]=v;render()}},String(v)))});d.appendChild(bs);f.appendChild(d)});
-    f.appendChild(h("div",{style:{textAlign:"center",padding:"10px 0",borderTop:"1px solid rgba(255,255,255,.06)"}},h("div",{style:{fontSize:"38px",fontWeight:800,fontFamily:"'Space Mono',monospace",color:vCol},innerHTML:totalSc+"<span style='font-size:16px;color:#64748b'>/10</span>"}),h("div",{style:{fontSize:"13px",fontWeight:700,color:vCol}},vTxt)));
+    f.appendChild(h("div",{style:{textAlign:"center",padding:"10px 0",borderTop:"1px solid var(--s4)"}},h("div",{style:{fontSize:"38px",fontWeight:800,fontFamily:"'Space Mono',monospace",color:vCol},innerHTML:totalSc+"<span style='font-size:16px;color:#64748b'>/10</span>"}),h("div",{style:{fontSize:"13px",fontWeight:700,color:vCol}},vTxt)));
     if(totalSc>=6){
       f.appendChild(btn(totalSc>=8?"Fast-Track Drop":"Ship Drop",shipDrop,totalSc>=8?"#22c55e":"#f59e0b",!df.name.trim()));
       if(cfg.shopifyDomain){
@@ -1412,7 +1413,7 @@ function render(){
     }
 
     if(cfg.shopifyDomain)main.appendChild(sec("Pull Numbers From",div=>{const g=h("div",{className:"g2"});links.shopify.slice(2,6).forEach(l=>g.appendChild(lnk(l)));g.appendChild(lnk({label:"Meta Ads",url:"https://adsmanager.facebook.com",desc:"Ad spend"}));g.appendChild(lnk({label:"TikTok Ads",url:"https://business.tiktok.com",desc:"TT spend"}));div.appendChild(g)}));
-    active.forEach(d=>{const age=daysAgo(d.ts),prof=(d.revenue||0)-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0),mgn=d.revenue>0?Math.round(prof/d.revenue*100):0,sc=Object.values(d.scores||{}).reduce((a,b)=>a+b,0),roas=(d.adSpend||0)>0?((d.revenue||0)/d.adSpend).toFixed(1)+"x":"--",kw=age>=3&&(d.orders||0)<10;const c=h("div",{style:{background:"var(--s1)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid #22c55e",border:"1px solid rgba(255,255,255,.06)"}});c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between"}},h("div",null,h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"15px"}},d.name),h("div",{style:{fontSize:"11px",color:"var(--text4)"}},d.category+" - Day "+age+" - Score "+sc+"/10"),d.moment?h("div",{style:{fontSize:"11px",color:"var(--text3)"}},d.moment):null),kw?h("div",{style:{fontSize:"11px",color:"#ef4444",fontWeight:700}},"<10 in 72h!"):null));
+    active.forEach(d=>{const age=daysAgo(d.ts),prof=(d.revenue||0)-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0),mgn=d.revenue>0?Math.round(prof/d.revenue*100):0,sc=Object.values(d.scores||{}).reduce((a,b)=>a+b,0),roas=(d.adSpend||0)>0?((d.revenue||0)/d.adSpend).toFixed(1)+"x":"--",kw=age>=3&&(d.orders||0)<10;const c=h("div",{style:{background:"var(--s1)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid #22c55e",border:"1px solid var(--s4)"}});c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between"}},h("div",null,h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"15px"}},d.name),h("div",{style:{fontSize:"11px",color:"var(--text4)"}},d.category+" - Day "+age+" - Score "+sc+"/10"),d.moment?h("div",{style:{fontSize:"11px",color:"var(--text3)"}},d.moment):null),kw?h("div",{style:{fontSize:"11px",color:"#ef4444",fontWeight:700}},"<10 in 72h!"):null));
     const ig=h("div",{className:"g4",style:{marginTop:"8px"}});[{l:"Revenue",k:"revenue",c:"#22c55e"},{l:"Orders",k:"orders",c:"var(--text)"},{l:"Ad Spend",k:"adSpend",c:"#f59e0b"},{l:"Returns",k:"returns",c:"#ef4444"}].forEach(f=>{const col=h("div",null,h("div",{style:{fontSize:"10px",color:"var(--text4)"}},f.l),h("input",{type:"number",value:String(d[f.k]||""),style:{width:"100%",padding:"4px 5px",borderRadius:"4px",border:"1px solid #334155",background:"var(--s3)",color:f.c,fontWeight:700,fontSize:"14px",boxSizing:"border-box"},onInput:e=>updDrop(d.id,{[f.k]:+e.target.value||0})}));ig.appendChild(col)});c.appendChild(ig);
     c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"6px"}},h("span",{style:{fontSize:"12px",color:"var(--text2)"},innerHTML:"Margin: <b style='color:"+(mgn>=20?"#22c55e":"#ef4444")+"'>"+mgn+"%</b>"}),h("span",{style:{fontSize:"12px",color:"var(--text2)"},innerHTML:"ROAS: <b style='color:"+(roas!=="--"&&parseFloat(roas)>=3?"#22c55e":"#f59e0b")+"'>"+roas+"</b>"}),h("div",{style:{display:"flex",gap:"5px"}},h("button",{style:{background:"none",border:"1px solid #ef4444",color:"#ef4444",fontSize:"11px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"killed"})},"Kill"),h("button",{style:{background:"none",border:"1px solid #22c55e",color:"#22c55e",fontSize:"11px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"completed"})},"Done"))));main.appendChild(c)});
     if(!active.length)main.appendChild(h("div",{style:{textAlign:"center",padding:"24px",color:"var(--text3)",fontSize:"15px"}},"Score a drop to get started"));
@@ -1424,7 +1425,7 @@ function render(){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Content Hub"));
     main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"12px",margin:"0 0 12px"}},"Target: 10-20/wk. Podcast biweekly."));
     const mg=h("div",{className:"g3",style:{marginBottom:"14px"}});mg.appendChild(met("Posted",String(postedCt),postedCt>=10?"#22c55e":"#f59e0b"));mg.appendChild(met("Planned",String(pwk.filter(p=>!p.posted).length),"#8b5cf6"));mg.appendChild(met("Drops",String(active.length),"#f59e0b"));main.appendChild(mg);
-    main.appendChild(sec("UTM Link Builder",div=>{const b=h("div",{className:"p"});b.appendChild(h("div",{style:{display:"flex",gap:"5px"}},sel(utm.source,v=>{st.utm.source=v;render()},["instagram","tiktok","email","podcast"],null,{flex:"1"}),sel(utm.medium,v=>{st.utm.medium=v;render()},["bio","reel","story","video","link","email"],null,{flex:"1"})));b.appendChild(h("div",{style:{height:"5px"}}));b.appendChild(inp(utm.campaign,v=>{st.utm.campaign=v;render()},"Campaign name","text",{fontSize:"12px"}));if(utmRes)b.appendChild(h("div",{style:{marginTop:"6px",padding:"7px 8px",background:"var(--btn-text)",borderRadius:"5px",fontSize:"11px",color:"#c4b5fd",wordBreak:"break-all",cursor:"pointer"},onClick:()=>{navigator.clipboard&&navigator.clipboard.writeText(utmRes)}},utmRes,h("div",{style:{color:"var(--text3)",marginTop:"3px"}},"Tap to copy")));div.appendChild(b)}));
+    main.appendChild(sec("UTM Link Builder",div=>{const b=h("div",{className:"p"});b.appendChild(h("div",{style:{display:"flex",gap:"5px"}},sel(utm.source,v=>{st.utm.source=v;render()},["instagram","tiktok","email","podcast"],null,{flex:"1"}),sel(utm.medium,v=>{st.utm.medium=v;render()},["bio","reel","story","video","link","email"],null,{flex:"1"})));b.appendChild(h("div",{style:{height:"5px"}}));b.appendChild(inp(utm.campaign,v=>{st.utm.campaign=v;render()},"Campaign name","text",{fontSize:"12px"}));if(utmRes)b.appendChild(h("div",{style:{marginTop:"6px",padding:"7px 8px",background:"var(--btn-text)",borderRadius:"5px",fontSize:"11px",color:"var(--accent-text)",wordBreak:"break-all",cursor:"pointer"},onClick:()=>{navigator.clipboard&&navigator.clipboard.writeText(utmRes)}},utmRes,h("div",{style:{color:"var(--text3)",marginTop:"3px"}},"Tap to copy")));div.appendChild(b)}));
     const pf2=h("div",{className:"p"});pf2.appendChild(h("div",{style:{display:"flex",gap:"5px",marginBottom:"6px"}},sel(pf.platform,v=>{st.pf.platform=v},PLATS,null,{flex:"1"}),sel(pf.dropId,v=>{st.pf.dropId=v},active.map(d=>d.name),"Link to drop",{flex:"1"})));const ta=h("textarea",{rows:"2",placeholder:"Caption / hook / idea...",style:{width:"100%",padding:"7px 8px",borderRadius:"5px",border:"1px solid #334155",background:"var(--s3)",color:"var(--text)",fontSize:"13px",fontFamily:"'DM Sans'",resize:"vertical",boxSizing:"border-box"},onInput:e=>{st.pf.caption=e.target.value}});ta.value=pf.caption;pf2.appendChild(ta);pf2.appendChild(btn("Add to Plan",addPost,"#8b5cf6",!pf.caption.trim()));main.appendChild(pf2);
     main.appendChild(sec("Post and Manage",div=>{const g=h("div",{className:"g2"});links.social.forEach(l=>g.appendChild(lnk(l)));div.appendChild(g)}));
     if(pwk.length)main.appendChild(sec("This Week ("+pwk.length+")",div=>{pwk.forEach(c=>{div.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"6px",padding:"6px 8px",borderLeft:"2px solid "+(c.posted?"#22c55e":"var(--border)"),marginBottom:"3px",borderRadius:"3px"}},h("button",{style:{background:"none",border:"2px solid "+(c.posted?"#22c55e":"var(--text3)"),borderRadius:"3px",width:"18px",height:"18px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#22c55e",fontSize:"12px",flexShrink:0},onClick:()=>togPost(c.id)},c.posted?"v":""),h("div",{style:{flex:"1"}},h("div",{style:{fontSize:"13px",color:c.posted?"var(--text4)":"var(--text)",textDecoration:c.posted?"line-through":"none"}},c.caption),h("div",{style:{fontSize:"11px",color:"var(--text3)"}},c.platform+(c.dropId?" - "+c.dropId:"")+" - "+fmtD(c.ts))),h("button",{style:{background:"none",border:"none",color:"var(--border)",cursor:"pointer"},onClick:()=>delPost(c.id)},"x")))})}));
