@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git status)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(python3 -m http.server:*)",
+      "Bash(supabase functions deploy:*)",
+      "Bash(supabase db push)",
+      "Bash(wc -l:*)",
+      "Bash(grep:*)"
+    ]
+  }
+}
