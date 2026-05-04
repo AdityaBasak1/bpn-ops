@@ -33,6 +33,11 @@ a{text-decoration:none}
 .tb button{background:none;border:none;cursor:pointer;padding:4px 10px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:48px}
 .wb{background:rgba(239,68,68,.06);border-left:3px solid #ef4444;border-radius:6px;padding:8px 10px}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes bpn-roar{0%{transform:translate(-50%,-50%) scale(1)}12%{transform:translate(-50%,-50%) scale(1.15) rotate(-5deg)}25%{transform:translate(-50%,-50%) scale(0.92) rotate(5deg)}40%{transform:translate(-50%,-50%) scale(1.18) rotate(-3deg)}55%{transform:translate(-50%,-50%) scale(0.96) rotate(3deg)}70%{transform:translate(-50%,-50%) scale(1.08)}85%{transform:translate(-50%,-50%) scale(0.99)}100%{transform:translate(-50%,-50%) scale(1)}}
+@keyframes bpn-expand{0%{transform:translate(-50%,-50%) scale(1);opacity:1}75%{transform:translate(-50%,-50%) scale(35);opacity:1}100%{transform:translate(-50%,-50%) scale(45);opacity:0}}
+@keyframes bpn-overlay{0%,75%{opacity:1}100%{opacity:0}}
+@keyframes bpn-app-in{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:scale(1)}}
+.bpn-app-enter{animation:bpn-app-in 0.5s ease-out forwards}
 #app{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
 .auth-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
 .auth-box{width:100%;max-width:360px}
@@ -132,7 +137,7 @@ async function loadAll(){
     if(maxTs)localStorage.setItem("bpn-ls",String(maxTs));
     st.lastScan=maxTs||st.lastScan;
   }
-  S({signals,drops,posts,promos,autoSignals,screen:"app"});
+  S({signals,drops,posts,promos,autoSignals,screen:"roar"});
 }
 
 async function loadTeamLLMStatus(){
@@ -760,6 +765,19 @@ function render(){
   
   // ── AUTH SCREEN ──
   if(st.screen==="loading"){app.appendChild(h("div",{className:"auth-wrap"},h("div",{style:{color:"var(--text4)"}},"Loading...")));return}
+
+  // ── ROAR TRANSITION ──
+  if(st.screen==="roar"){
+    const ov=document.createElement("div");
+    ov.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;background:#0d1b3e;z-index:9999;overflow:hidden;animation:bpn-overlay 1.6s ease-in-out 0.9s forwards";
+    const img=document.createElement("img");
+    img.src="assets/logo.png";
+    img.style.cssText="position:absolute;left:50%;top:50%;width:140px;height:140px;border-radius:50%;animation:bpn-roar 0.9s cubic-bezier(.36,.07,.19,.97),bpn-expand 1.6s ease-in 0.9s forwards";
+    ov.appendChild(img);
+    app.appendChild(ov);
+    setTimeout(()=>{S({screen:"app"});app.classList.add("bpn-app-enter");setTimeout(()=>app.classList.remove("bpn-app-enter"),500)},2600);
+    return;
+  }
   if(st.screen==="auth"){
     const box=h("div",{className:"auth-wrap"});
     const card=h("div",{className:"auth-box"});
