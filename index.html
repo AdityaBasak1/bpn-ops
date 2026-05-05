@@ -1436,6 +1436,22 @@ function render(){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Drops"));
     main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"12px",margin:"0 0 12px"}},"Track revenue, orders, ad spend, returns."));
 
+    // Build drop → promos map (by dropId first, then by name match)
+    const promosByDrop={};
+    promos.forEach(p=>{
+      const key=p.dropId||null;
+      if(key){if(!promosByDrop[key])promosByDrop[key]=[];promosByDrop[key].push(p)}
+    });
+    active.forEach(d=>{
+      if(!promosByDrop[d.id])promosByDrop[d.id]=[];
+      const nameKey=d.name.toLowerCase().slice(0,18);
+      promos.forEach(p=>{
+        if(!p.dropId&&p.productName&&p.productName.toLowerCase().includes(nameKey)){
+          if(!promosByDrop[d.id].find(x=>x.id===p.id))promosByDrop[d.id].push(p);
+        }
+      });
+    });
+
     // Shopify auto-sync button (visible if Shopify Edge Function is configured)
     if(cfg.shopifyEdgeConfigured){
       const lastSync=+(localStorage.getItem("bpn-shopify-sync")||0);
@@ -1449,7 +1465,33 @@ function render(){
     if(cfg.shopifyDomain)main.appendChild(sec("Pull Numbers From",div=>{const g=h("div",{className:"g2"});links.shopify.slice(2,6).forEach(l=>g.appendChild(lnk(l)));g.appendChild(lnk({label:"Meta Ads",url:"https://adsmanager.facebook.com",desc:"Ad spend"}));g.appendChild(lnk({label:"TikTok Ads",url:"https://business.tiktok.com",desc:"TT spend"}));div.appendChild(g)}));
     active.forEach(d=>{const age=daysAgo(d.ts),prof=(d.revenue||0)-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0),mgn=d.revenue>0?Math.round(prof/d.revenue*100):0,sc=Object.values(d.scores||{}).reduce((a,b)=>a+b,0),roas=(d.adSpend||0)>0?((d.revenue||0)/d.adSpend).toFixed(1)+"x":"--",kw=age>=3&&(d.orders||0)<10;const c=h("div",{style:{background:"var(--s1)",borderRadius:"8px",padding:"12px",marginBottom:"8px",borderLeft:"3px solid #22c55e",border:"1px solid var(--s4)"}});c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between"}},h("div",null,h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"15px"}},d.name),h("div",{style:{fontSize:"11px",color:"var(--text4)"}},d.category+" - Day "+age+" - Score "+sc+"/10"),d.moment?h("div",{style:{fontSize:"11px",color:"var(--text3)"}},d.moment):null),kw?h("div",{style:{fontSize:"11px",color:"#ef4444",fontWeight:700}},"<10 in 72h!"):null));
     const ig=h("div",{className:"g4",style:{marginTop:"8px"}});[{l:"Revenue",k:"revenue",c:"#22c55e"},{l:"Orders",k:"orders",c:"var(--text)"},{l:"Ad Spend",k:"adSpend",c:"#f59e0b"},{l:"Returns",k:"returns",c:"#ef4444"}].forEach(f=>{const col=h("div",null,h("div",{style:{fontSize:"10px",color:"var(--text4)"}},f.l),h("input",{type:"number",value:String(d[f.k]||""),style:{width:"100%",padding:"4px 5px",borderRadius:"4px",border:"1px solid #334155",background:"var(--s3)",color:f.c,fontWeight:700,fontSize:"14px",boxSizing:"border-box"},onInput:e=>updDrop(d.id,{[f.k]:+e.target.value||0})}));ig.appendChild(col)});c.appendChild(ig);
-    c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"6px"}},h("span",{style:{fontSize:"12px",color:"var(--text2)"},innerHTML:"Margin: <b style='color:"+(mgn>=20?"#22c55e":"#ef4444")+"'>"+mgn+"%</b>"}),h("span",{style:{fontSize:"12px",color:"var(--text2)"},innerHTML:"ROAS: <b style='color:"+(roas!=="--"&&parseFloat(roas)>=3?"#22c55e":"#f59e0b")+"'>"+roas+"</b>"}),h("div",{style:{display:"flex",gap:"5px"}},h("button",{style:{background:"none",border:"1px solid #ef4444",color:"#ef4444",fontSize:"11px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"killed"})},"Kill"),h("button",{style:{background:"none",border:"1px solid #22c55e",color:"#22c55e",fontSize:"11px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"completed"})},"Done"))));main.appendChild(c)});
+    c.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"6px"}},h("span",{style:{fontSize:"12px",color:"var(--text2)"},innerHTML:"Margin: <b style='color:"+(mgn>=20?"#22c55e":"#ef4444")+"'>"+mgn+"%</b>"}),h("span",{style:{fontSize:"12px",color:"var(--text2)"},innerHTML:"ROAS: <b style='color:"+(roas!=="--"&&parseFloat(roas)>=3?"#22c55e":"#f59e0b")+"'>"+roas+"</b>"}),h("div",{style:{display:"flex",gap:"5px"}},h("button",{style:{background:"none",border:"1px solid #ef4444",color:"#ef4444",fontSize:"11px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"killed"})},"Kill"),h("button",{style:{background:"none",border:"1px solid #22c55e",color:"#22c55e",fontSize:"11px",fontWeight:600,padding:"2px 8px",borderRadius:"4px",cursor:"pointer"},onClick:()=>updDrop(d.id,{status:"completed"})},"Done"))));
+    // ── Combined affiliate view ──
+    const linked=promosByDrop[d.id]||[];
+    if(linked.length>0){
+      const affComm=linked.reduce((s,p)=>s+(Number(p.commission)||0),0);
+      const affClicks=linked.reduce((s,p)=>s+(Number(p.clicks)||0),0);
+      const affSales=linked.reduce((s,p)=>s+(Number(p.sales)||0),0);
+      const totalRev=(d.revenue||0)+affComm;
+      const totalProf=totalRev-((d.cost||0)*(d.orders||0))-(d.adSpend||0)-(d.returns||0);
+      const affBox=h("div",{style:{marginTop:"8px",padding:"8px 10px",background:"rgba(255,0,79,.05)",border:"1px solid rgba(255,0,79,.18)",borderRadius:"6px"}});
+      affBox.appendChild(h("div",{style:{fontSize:"10px",color:"#ff6b94",fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"5px"}},"📣 Affiliate ("+linked.length+" promo"+(linked.length>1?"s":"")+" linked)"));
+      affBox.appendChild(h("div",{className:"g3"},
+        h("div",null,h("div",{style:{fontSize:"10px",color:"var(--text3)"}},"Clicks"),h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"13px"}},String(affClicks))),
+        h("div",null,h("div",{style:{fontSize:"10px",color:"var(--text3)"}},"Sales"),h("div",{style:{fontWeight:700,color:"var(--text)",fontSize:"13px"}},String(affSales))),
+        h("div",null,h("div",{style:{fontSize:"10px",color:"var(--text3)"}},"Commission"),h("div",{style:{fontWeight:700,color:"#ff004f",fontSize:"13px"}},"£"+affComm.toFixed(0)))
+      ));
+      affBox.appendChild(h("div",{style:{marginTop:"7px",paddingTop:"7px",borderTop:"1px solid rgba(255,0,79,.15)",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+        h("span",{style:{fontSize:"12px",color:"var(--text2)"}},"Combined revenue"),
+        h("span",{style:{fontWeight:800,fontSize:"14px",color:"#22c55e"}},"£"+totalRev.toFixed(0))
+      ));
+      affBox.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"3px"}},
+        h("span",{style:{fontSize:"12px",color:"var(--text2)"}},"Net profit"),
+        h("span",{style:{fontWeight:800,fontSize:"14px",color:totalProf>=0?"#22c55e":"#ef4444"}},"£"+totalProf.toFixed(0))
+      ));
+      c.appendChild(affBox);
+    }
+    main.appendChild(c)});
     if(!active.length)main.appendChild(h("div",{style:{textAlign:"center",padding:"24px",color:"var(--text3)",fontSize:"15px"}},"Score a drop to get started"));
     const past=drops.filter(d=>d.status!=="active");if(past.length)main.appendChild(sec("Past Drops",div=>{past.slice(0,15).forEach(d=>{div.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",padding:"5px 8px",borderLeft:"2px solid "+(d.status==="killed"?"#ef4444":"var(--text3)"),marginBottom:"3px",borderRadius:"3px"}},h("span",{style:{fontSize:"13px",color:"var(--text2)"}},d.name),h("span",{style:{fontSize:"13px",color:"#22c55e",fontWeight:700}},"£"+(d.revenue||0))))})},true));
   }
