@@ -1172,10 +1172,23 @@ function render(){
                 h("button",{style:{background:"#ff004f",border:"none",color:"#fff",fontSize:"11px",fontWeight:700,padding:"4px 10px",borderRadius:"4px",cursor:"pointer",whiteSpace:"nowrap"},onClick:()=>logPromotion(p,s,"tiktok-shop")},"Promo only")
               )
             ));
-            // Single TikTok Shop Affiliate search link
-            const q=encodeURIComponent((p.search||p.name||"").toLowerCase().replace(/[^a-z0-9\s]/g,"").trim());
+            // Search term chip + copy-then-open button
+            const searchTerm=(p.search||p.name||"").toLowerCase().replace(/[^a-z0-9\s]/g,"").trim();
             const linkRow=h("div",{style:{padding:"0 10px 10px"}});
-            linkRow.appendChild(h("a",{href:`https://affiliate.tiktok.com/connection/product?shop_region=GB&keyword=${q}`,target:"_blank",rel:"noopener noreferrer",style:{display:"block",padding:"7px 12px",background:"rgba(255,0,79,.08)",border:"1px solid rgba(255,0,79,.25)",borderRadius:"6px",fontSize:"13px",color:"#ff004f",fontWeight:700,textDecoration:"none",textAlign:"center"}},"Find on TikTok Shop Affiliate ↗"));
+            // Show the search term visibly so user always knows what to type
+            linkRow.appendChild(h("div",{style:{display:"flex",alignItems:"center",gap:"6px",marginBottom:"6px"}},
+              h("span",{style:{fontSize:"11px",color:"var(--text3)"}},"Search:"),
+              h("span",{style:{fontSize:"12px",fontFamily:"monospace",background:"var(--s2)",border:"1px solid var(--s4)",borderRadius:"4px",padding:"2px 7px",color:"var(--text)",fontWeight:600}},searchTerm)
+            ));
+            // Button: copies term to clipboard then opens Affiliate Center
+            const findBtn=h("button",{style:{display:"block",width:"100%",padding:"8px 12px",background:"rgba(255,0,79,.08)",border:"1px solid rgba(255,0,79,.25)",borderRadius:"6px",fontSize:"13px",color:"#ff004f",fontWeight:700,cursor:"pointer",textAlign:"center"},
+              onClick:()=>{
+                navigator.clipboard.writeText(searchTerm).catch(()=>{});
+                window.open("https://affiliate.tiktok.com/connection/product?shop_region=GB","_blank");
+                findBtn.textContent="✓ Copied — paste in Affiliate Center search";
+                setTimeout(()=>{findBtn.textContent="Find on TikTok Affiliate ↗ (copies search term)"},3000);
+              }},"Find on TikTok Affiliate ↗ (copies search term)");
+            linkRow.appendChild(findBtn);
             prodCard.appendChild(linkRow);
             pWrap.appendChild(prodCard);
           });
