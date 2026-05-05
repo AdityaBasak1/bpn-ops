@@ -1156,7 +1156,6 @@ function render(){
           const pWrap=h("div",{style:{padding:"0 10px 10px",borderTop:"1px solid rgba(255,255,255,.05)"}});
           pWrap.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text4)",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginTop:"8px",marginBottom:"6px"}},"Real products to promote"));
           s.products.forEach(p=>{
-            const searches=buildProductSearches(p);
             const prodCard=h("div",{style:{background:"var(--s1)",borderRadius:"5px",marginBottom:"6px",overflow:"hidden"}});
             // Top row: name + promote button
             prodCard.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"8px",padding:"8px 10px"}},
@@ -1173,13 +1172,10 @@ function render(){
                 h("button",{style:{background:"#ff004f",border:"none",color:"#fff",fontSize:"11px",fontWeight:700,padding:"4px 10px",borderRadius:"4px",cursor:"pointer",whiteSpace:"nowrap"},onClick:()=>logPromotion(p,s,"tiktok-shop")},"Promo only")
               )
             ));
-            // Affiliate platform search links
-            const linkRow=h("div",{style:{padding:"0 10px 8px",display:"flex",gap:"4px",flexWrap:"wrap"}});
-            linkRow.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.5px",width:"100%",marginBottom:"3px"}},"Find live product:"));
-            searches.forEach(l=>{
-              const isPrimary=l.primary;
-              linkRow.appendChild(h("a",{href:l.url,target:"_blank",rel:"noopener noreferrer",title:l.desc,style:{display:"inline-block",padding:"3px 8px",background:isPrimary?"rgba(255,0,79,.12)":"rgba(139,92,246,.08)",color:isPrimary?"#ff6b94":"var(--accent-text)",fontSize:"12px",fontWeight:600,borderRadius:"3px",textDecoration:"none",border:"1px solid "+(isPrimary?"rgba(255,0,79,.25)":"rgba(139,92,246,.15)")}},l.label+" ↗"));
-            });
+            // Single TikTok Shop Affiliate search link
+            const q=encodeURIComponent((p.search||p.name||"").toLowerCase().replace(/[^a-z0-9\s]/g,"").trim());
+            const linkRow=h("div",{style:{padding:"0 10px 10px"}});
+            linkRow.appendChild(h("a",{href:`https://affiliate.tiktok.com/connection/product?shop_region=GB&keyword=${q}`,target:"_blank",rel:"noopener noreferrer",style:{display:"block",padding:"7px 12px",background:"rgba(255,0,79,.08)",border:"1px solid rgba(255,0,79,.25)",borderRadius:"6px",fontSize:"13px",color:"#ff004f",fontWeight:700,textDecoration:"none",textAlign:"center"}},"Find on TikTok Shop Affiliate ↗"));
             prodCard.appendChild(linkRow);
             pWrap.appendChild(prodCard);
           });

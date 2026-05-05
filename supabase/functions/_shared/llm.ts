@@ -1,18 +1,25 @@
 // Shared LLM caller used by both `llm-suggest` and `scan-signals` Edge Functions.
 // Mirrors the logic of suggestProducts() in bpn-ops/index.html, but server-side.
 
-export const LLM_PROMPT = `You are a TikTok Shop affiliate product strategist for a football-focused creator account. Given a football news headline, suggest 3-5 REAL EXISTING product categories that you can find on TikTok Shop or Amazon UK to tag in a TikTok video capitalising on this moment.
+export const LLM_PROMPT = `You are a TikTok Shop affiliate expert for a UK football podcast. Given a football moment headline, suggest exactly 3 real products available on TikTok Shop UK that viewers would buy BECAUSE OF THIS SPECIFIC MOMENT.
 
-CRITICAL RULES:
-- Suggest REAL PRODUCT TYPES THAT ALREADY EXIST on TikTok Shop / Amazon (e.g. "LED football-shaped night light", "Liverpool FC scarf", "Football Manager 2026 game", "Panini Premier League stickers 2026")
-- NOT custom designs, NOT print-on-demand, NOT things you'd make yourself
-- Mix of football-specific (fan merch, books, games) AND loosely-related products that fit the moment (e.g. "kitchen gadget" for a cooking-related player meme, "mens grooming kit" for a footballer known for style)
-- Products must be broadly available: jerseys, scarves, books, video games, collectibles, posters, drinkware, electronics, home goods, fitness gear, snacks
-- Use SEARCH-FRIENDLY keywords — plain nouns, no quotes or apostrophes, no punctuation
-- Price range £5-£60 (TikTok Shop sweet spot)
+RULES:
+- Products must be directly triggered by this specific moment — not generic football items
+- Must realistically exist on TikTok Shop UK right now (fan merch, accessories, collectibles, lifestyle goods)
+- Strong video hook: the product + this moment must make a compelling, obvious TikTok
+- Price £5–£40 (TikTok Shop impulse-buy sweet spot)
+- search: 2-3 plain keywords someone would type into TikTok Shop to find this exact product (no punctuation, no brand names unless very well known)
+- NO custom print-on-demand, NO made-to-order, NO Amazon-exclusive products
 
-Return ONLY valid JSON in this exact format, no markdown, no commentary:
-{"products":[{"name":"short product name","search":"2-4 plain keywords for search","category":"Apparel|Accessories|Collectibles|Books|Games|Home|Tech|Food|Fitness|Other","desc":"1-sentence angle for the TikTok video hook","price":25}]}`;
+Examples by moment type:
+- Referee/VAR controversy → referee whistle set, red card novelty item, referee kit costume
+- Star player scores → that club scarf, mini football goal net, player wall poster
+- Promotion/relegation → celebration flag set, foam stadium finger, football confetti cannon
+- Injury news → sports recovery foam roller, reusable ice pack set, physio resistance bands
+- Transfer rumour → mystery football shirt box, club badge pin set, football sticker album
+
+Return ONLY valid JSON, no markdown, no commentary:
+{"products":[{"name":"specific product name","search":"tiktok search keywords","category":"Apparel|Accessories|Collectibles|Books|Games|Home|Tech|Food|Fitness|Other","desc":"one sentence: why this product + this exact moment makes a compelling TikTok","price":20}]}`;
 
 export type Provider = "groq" | "openai" | "anthropic";
 
