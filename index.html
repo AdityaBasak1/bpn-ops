@@ -1007,17 +1007,20 @@ function render(){
       // Connect TikTok account via OAuth
       sp.appendChild(h("div",{style:{height:"8px"}}));
       const ttConnected=cfg.tiktokConnected;
-      const storedAppKey=cfg.tiktokAppKey||"";
       sp.appendChild(h("div",{style:{fontSize:"11px",color:ttConnected?"#22c55e":"#f59e0b",marginBottom:"6px",fontWeight:600}},ttConnected?"✓ TikTok account connected — data sync active":"⚠ TikTok account not yet connected"));
-      if(cfg.tiktokApiConfigured&&storedAppKey){
-        sp.appendChild(btn("Connect TikTok Account",()=>{
-          const oauthUrl=`https://auth.tiktok-shops.com/oauth/authorize?app_key=${encodeURIComponent(storedAppKey)}&state=${encodeURIComponent(st.teamId)}&redirect_uri=${encodeURIComponent(SUPABASE_URL+"/functions/v1/tiktok-auth-callback")}`;
-          window.open(oauthUrl,"_blank");
-        },"#010101"));
-        sp.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginTop:"4px",lineHeight:"1.4"}},"Opens TikTok login. After authorising, you'll be redirected back and the connection is complete."));
-      } else if(cfg.tiktokApiConfigured&&!storedAppKey){
-        sp.appendChild(h("div",{style:{fontSize:"11px",color:"#f59e0b",lineHeight:"1.4"}},"Re-enter your App Key and Secret above and save again to enable the connect button."));
-      }
+      sp.appendChild(btn("Connect TikTok Account",()=>{
+        const key=cfg.tiktokAppKey||ttKey||prompt("Enter your TikTok App Key:");
+        if(!key)return;
+        const redirectUri=SUPABASE_URL+"/functions/v1/tiktok-auth-callback";
+        const oauthUrl="https://www.tiktok.com/v2/auth/authorize/?"
+          +"client_key="+encodeURIComponent(key)
+          +"&scope=user.info.basic,video.list"
+          +"&response_type=code"
+          +"&redirect_uri="+encodeURIComponent(redirectUri)
+          +"&state="+encodeURIComponent(st.teamId);
+        window.open(oauthUrl,"_blank");
+      },"#010101"));
+      sp.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginTop:"4px",lineHeight:"1.4"}},"Opens TikTok login. After authorising, you'll be redirected back and the connection is complete."));
     }
 
     // ─── Team LLM Key (shared, server-side) ───

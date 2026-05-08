@@ -11,7 +11,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const TIKTOK_TOKEN_URL          = "https://auth.tiktok-shops.com/api/v2/token/get";
+const TIKTOK_TOKEN_URL          = "https://open.tiktokapis.com/v2/oauth/token/";
 const APP_REDIRECT              = "https://adityabasak1.github.io/bpn-ops/";
 
 Deno.serve(async (req) => {
@@ -40,28 +40,32 @@ Deno.serve(async (req) => {
     return redirect(APP_REDIRECT + "?tiktok_error=no_app_credentials");
   }
 
-  // Exchange auth code for tokens
+  // Exchange auth code for tokens (creator OAuth — open.tiktokapis.com)
+  const redirectUri = `${SUPABASE_URL}/functions/v1/tiktok-auth-callback`;
+  const body = new URLSearchParams({
+    client_key:    secret.tiktok_app_key,
+    client_secret: secret.tiktok_app_secret,
+    code:          code,
+    grant_type:    "authorization_code",
+    redirect_uri:  redirectUri,
+  });
+
   const tokenRes = await fetch(TIKTOK_TOKEN_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      app_key:      secret.tiktok_app_key,
-      app_secret:   secret.tiktok_app_secret,
-      auth_code:    code,
-      grant_type:   "authorized_code",
-    }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
   });
 
   const tokenData = await tokenRes.json();
 
-  if (tokenData.code !== 0) {
+  if (tokenData.error) {
     return redirect(
-      APP_REDIRECT + "?tiktok_error=" + encodeURIComponent(tokenData.message || "token_exchange_failed")
+      APP_REDIRECT + "?tiktok_error=" + encodeURIComponent(tokenData.error_description || tokenData.error || "token_exchange_failed")
     );
   }
 
-  const { access_token, refresh_token, access_token_expire_in } = tokenData.data;
-  const expiry = Date.now() + (access_token_expire_in * 1000);
+  const { access_token, refresh_token, expires_in } = tokenData;
+  const expiry = Date.now() + ((expires_in || 86400) * 1000);
 
   // Store tokens in team_secrets
   await admin
