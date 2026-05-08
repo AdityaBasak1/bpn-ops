@@ -987,6 +987,20 @@ function render(){
     }
     sp.appendChild(btn("Save Settings",()=>{setCfgLocal(st.cfg);S({showSetup:false})}));
 
+    // ─── TikTok API Credentials (admin only) ───
+    if(st.isTeamAdmin){
+      sp.appendChild(h("div",{style:{fontSize:"12px",fontWeight:700,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"1px",marginTop:"14px",marginBottom:"6px"}},"TikTok Shop API"));
+      sp.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"8px",lineHeight:"1.4"}},"From partner.tiktokshop.com → your app → App Key & App Secret."));
+      let ttKey="",ttSecret="";
+      sp.appendChild(inp("",v=>{ttKey=v},"App Key","text",{marginBottom:"6px"}));
+      sp.appendChild(inp("",v=>{ttSecret=v},"App Secret","password",{marginBottom:"6px"}));
+      sp.appendChild(btn("Save TikTok Credentials",async()=>{
+        if(!ttKey.trim()||!ttSecret.trim()){alert("Enter both App Key and App Secret.");return}
+        const{error}=await sb.rpc("set_team_tiktok_app",{p_team_id:st.teamId,p_app_key:ttKey.trim(),p_app_secret:ttSecret.trim()});
+        if(error){alert("Error saving: "+error.message)}else{st.cfg.tiktokApiConfigured=true;setCfgLocal(st.cfg);alert("TikTok credentials saved.")}
+      },"#ff004f"));
+    }
+
     // ─── Team LLM Key (shared, server-side) ───
     const teamLLMBox=h("div",{style:{marginTop:"14px",padding:"10px",background:"rgba(139,92,246,.06)",borderRadius:"6px",border:"1px solid rgba(139,92,246,.18)"}});
     teamLLMBox.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:"var(--text)",marginBottom:"4px"}},"Team AI Key (shared)"));
