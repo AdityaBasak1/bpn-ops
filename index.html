@@ -997,8 +997,19 @@ function render(){
       sp.appendChild(btn("Save TikTok Credentials",async()=>{
         if(!ttKey.trim()||!ttSecret.trim()){alert("Enter both App Key and App Secret.");return}
         const{error}=await sb.rpc("set_team_tiktok_app",{p_team_id:st.teamId,p_app_key:ttKey.trim(),p_app_secret:ttSecret.trim()});
-        if(error){alert("Error saving: "+error.message)}else{st.cfg.tiktokApiConfigured=true;setCfgLocal(st.cfg);alert("TikTok credentials saved.")}
+        if(error){alert("Error saving: "+error.message)}else{st.cfg.tiktokApiConfigured=true;setCfgLocal(st.cfg);S({showSetup:false});S({showSetup:true})}
       },"#ff004f"));
+      // Connect TikTok account via OAuth
+      sp.appendChild(h("div",{style:{height:"8px"}}));
+      const ttConnected=cfg.tiktokApiConfigured&&cfg.tiktokConnected;
+      sp.appendChild(h("div",{style:{fontSize:"11px",color:ttConnected?"#22c55e":"#f59e0b",marginBottom:"6px",fontWeight:600}},ttConnected?"✓ TikTok account connected":"⚠ TikTok account not yet connected"));
+      if(cfg.tiktokApiConfigured){
+        sp.appendChild(btn("Connect TikTok Account",()=>{
+          const oauthUrl=`https://auth.tiktok-shops.com/oauth/authorize?app_key=${encodeURIComponent(ttKey||"[save credentials first]")}&state=${st.teamId}&redirect_uri=${encodeURIComponent(SUPABASE_URL+"/functions/v1/tiktok-auth-callback")}`;
+          window.open(oauthUrl,"_blank");
+        },"#010101"));
+        sp.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginTop:"4px",lineHeight:"1.4"}},"Opens TikTok login. After authorising, you'll be redirected back and the connection is complete."));
+      }
     }
 
     // ─── Team LLM Key (shared, server-side) ───
@@ -1574,6 +1585,18 @@ function render(){
 }
 
 // ─── Init ───
+// Handle TikTok OAuth redirect back to app
+(()=>{
+  const p=new URLSearchParams(window.location.search);
+  if(p.get("tiktok_connected")==="1"){
+    st.cfg.tiktokConnected=true;setCfgLocal(st.cfg);
+    window.history.replaceState({},"",window.location.pathname);
+    alert("✓ TikTok account connected! Data sync is now active.");
+  } else if(p.get("tiktok_error")){
+    window.history.replaceState({},"",window.location.pathname);
+    alert("TikTok connection failed: "+p.get("tiktok_error"));
+  }
+})();
 checkSession();
 </script>
 </body>
