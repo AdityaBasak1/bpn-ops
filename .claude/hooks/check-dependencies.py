@@ -32,7 +32,7 @@ FUNCTIONS_DIR = os.path.join(ROOT, "supabase", "functions")
 
 # ── Ground-truth sets from migrations ───────────────────────────────────────
 KNOWN_TABLES = {"bpn", "teams", "team_members", "team_secrets"}
-KNOWN_RPCS   = {"get_team_llm_status", "set_team_llm_secret", "set_team_shopify_secret", "get_team_shopify_status", "set_team_tiktok_app"}
+KNOWN_RPCS   = {"get_team_llm_status", "set_team_llm_secret", "set_team_shopify_secret", "get_team_shopify_status", "set_team_tiktok_app", "set_team_tiktok_creator_app"}
 
 
 def main():
