@@ -1,35 +1,44 @@
-// Shared LLM caller used by both `llm-suggest` and `scan-signals` Edge Functions.
-// Mirrors the logic of suggestProducts() in bpn-ops/index.html, but server-side.
+// Shared LLM prompt + message builder for bpn-ops edge functions.
+// callLLM retained for backward compatibility but new code should use callClaude from claude.ts.
 
-export const LLM_PROMPT = `You are a TikTok Shop affiliate expert for a UK football podcast. Given a football moment headline, suggest exactly 3 real products available on TikTok Shop UK that viewers would buy BECAUSE OF THIS SPECIFIC MOMENT.
+export const LLM_PROMPT = `You are a TikTok Shop affiliate product expert for a UK football podcast account (@thebluepodcastnetwork, 13K followers). Given a football moment, suggest exactly 3 real products available on TikTok Shop UK right now.
 
-RULES:
-- Products must be directly triggered by this specific moment — not generic football items
-- Must realistically exist on TikTok Shop UK right now (fan merch, accessories, collectibles, lifestyle goods)
-- Strong video hook: the product + this moment must make a compelling, obvious TikTok
-- Price £5–£40 (TikTok Shop impulse-buy sweet spot)
-- search: 2-3 plain keywords someone would type into TikTok Shop to find this exact product (no punctuation, no brand names unless very well known)
-- NO custom print-on-demand, NO made-to-order, NO Amazon-exclusive products
+RULES — no exceptions:
+- Exactly 3 products
+- Must exist on TikTok Shop UK today (fan merch, accessories, collectibles, fitness, home, tech, food, games, books)
+- Triggered by THIS specific moment — not generic football items
+- Price £5–£40 (TikTok Shop impulse-buy range)
+- search: 2–3 plain keywords a viewer would type into TikTok Shop (no punctuation, no brand names unless very well known)
+- hook: one punchy sentence — the TikTok video angle that makes this product irresistible right now
+- NO print-on-demand, NO custom orders, NO Amazon-only products
 
 Examples by moment type:
 - Referee/VAR controversy → referee whistle set, red card novelty item, referee kit costume
-- Star player scores → that club scarf, mini football goal net, player wall poster
-- Promotion/relegation → celebration flag set, foam stadium finger, football confetti cannon
-- Injury news → sports recovery foam roller, reusable ice pack set, physio resistance bands
-- Transfer rumour → mystery football shirt box, club badge pin set, football sticker album
+- Star player scores → club scarf, mini goal net, player poster
+- Promotion/relegation → celebration flag, foam stadium finger, confetti cannon
+- Injury news → foam roller, reusable ice pack, resistance bands
+- Transfer rumour → mystery shirt box, club badge pin set, sticker album
 
 Return ONLY valid JSON, no markdown, no commentary:
-{"products":[{"name":"specific product name","search":"tiktok search keywords","category":"Apparel|Accessories|Collectibles|Books|Games|Home|Tech|Food|Fitness|Other","desc":"one sentence: why this product + this exact moment makes a compelling TikTok","price":20}]}`;
-
-export type Provider = "groq" | "openai" | "anthropic";
+{"products":[{"name":"product name","search":"tiktok keywords","category":"Apparel|Accessories|Collectibles|Books|Games|Home|Tech|Food|Fitness|Other","hook":"video angle sentence","price":20}]}`;
 
 export type Product = {
   name: string;
   search: string;
   category: string;
-  desc: string;
+  hook: string;
   price: number;
 };
+
+export function buildMessage(headline: string, source?: string, notes?: string): string {
+  let msg = `Headline: ${headline}`;
+  if (source) msg += `\nSource: ${source}`;
+  if (notes) msg += ` | ${notes}`;
+  return msg;
+}
+
+// ── Legacy multi-provider caller (kept for reference) ───────────────────────
+export type Provider = "groq" | "openai" | "anthropic";
 
 export async function callLLM(
   provider: Provider,

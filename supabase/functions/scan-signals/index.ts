@@ -1,18 +1,17 @@
-// scan-signals: cron-fired (and on-demand) Reddit scanner + LLM enricher.
-// Writes auto_signal rows to the `bpn` table, one batch per team that has a
-// configured LLM key. Reddit is fetched once per invocation and reused.
+// scan-signals: on-demand Reddit scanner + Claude enricher.
+// Fetches hot football posts, scores by velocity, enriches top signals with Claude.
 //
-// Trigger sources:
-//   1. pg_cron via net.http_post (every 30 min) — uses service-role auth header.
-//   2. Client "Scan Now" button — uses the user's JWT; only that user's team is scanned.
+// Trigger: Client "Scan Now" button (user's JWT) or pg_cron (service-role, currently disabled).
 //
 // Deploy: supabase functions deploy scan-signals
+// Secret:  supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callLLM, type Provider } from "../_shared/llm.ts";
+import { callClaude } from "../_shared/claude.ts";
+import { LLM_PROMPT, buildMessage } from "../_shared/llm.ts";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const SUPABASE_URL              = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY         = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const CORS = {
@@ -43,22 +42,17 @@ type Signal = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405, headers: CORS });
-  }
+  if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: CORS });
 
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const authHeader = req.headers.get("Authorization") || "";
   const isServiceRole = authHeader.includes(SUPABASE_SERVICE_ROLE_KEY);
 
-  // Determine target teams: cron run = all teams with keys; user run = caller's team(s) only.
   let teamIds: string[] = [];
   if (isServiceRole) {
-    const { data } = await admin
-      .from("team_secrets")
-      .select("team_id, llm_key")
-      .not("llm_key", "is", null);
-    teamIds = (data || []).filter((r) => r.llm_key).map((r) => r.team_id);
+    // Cron path: scan all teams
+    const { data } = await admin.from("teams").select("id");
+    teamIds = (data || []).map((r) => r.id);
   } else {
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
@@ -76,7 +70,6 @@ Deno.serve(async (req) => {
     return json({ ok: true, scanned_teams: 0, message: "No teams to scan" });
   }
 
-  // Fetch Reddit once for the entire invocation.
   const signals = await fetchAllReddit();
   if (signals.length === 0) {
     return json({ ok: true, scanned_teams: 0, message: "Reddit fetch returned nothing" });
@@ -86,23 +79,22 @@ Deno.serve(async (req) => {
   const errors: string[] = [];
 
   for (const teamId of teamIds) {
-    const { data: secret } = await admin
-      .from("team_secrets")
-      .select("llm_key, llm_provider")
-      .eq("team_id", teamId)
-      .maybeSingle();
-
-    // Clone signals so per-team enrichment doesn't bleed across teams.
     const teamSignals: Signal[] = signals.map((s) => ({ ...s, products: null }));
 
-    if (secret?.llm_key) {
-      const provider = (secret.llm_provider || "groq") as Provider;
-      const top = teamSignals.filter((s) => s.velocity >= 6).slice(0, 5);
+    // Enrich top signals with Claude
+    const top = teamSignals.filter((s) => s.velocity >= 6).slice(0, 5);
+    if (top.length > 0) {
       const results = await Promise.all(
         top.map(async (sig) => {
-          const { products, error } = await callLLM(provider, secret.llm_key!, sig.fullTitle);
-          if (error) errors.push(`team ${teamId}: ${error}`);
-          return { id: sig.id, products };
+          try {
+            const text = await callClaude(LLM_PROMPT, buildMessage(sig.fullTitle, sig.source, sig.notes));
+            const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+            const parsed = JSON.parse(cleaned);
+            return { id: sig.id, products: parsed.products || null };
+          } catch (e) {
+            errors.push(`team ${teamId}: ${(e as Error).message}`);
+            return { id: sig.id, products: null };
+          }
         }),
       );
       results.forEach(({ id, products }) => {
@@ -113,7 +105,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Upsert as auto_signal rows in the bpn table. item_id ensures dedupe per team.
+    // Upsert signals into bpn table
     const rows = teamSignals.map((s) => ({
       team_id: teamId,
       type: "auto_signal",
@@ -122,12 +114,10 @@ Deno.serve(async (req) => {
       ts: s.ts,
     }));
 
-    // Delete previous auto_signal rows for this team older than 48h, then insert.
     const cutoff = Date.now() - 48 * 60 * 60 * 1000;
     await admin.from("bpn").delete()
       .eq("team_id", teamId).eq("type", "auto_signal").lt("ts", cutoff);
 
-    // Upsert one-by-one to avoid duplicate-key errors (no composite unique).
     for (const row of rows) {
       const { data: existing } = await admin
         .from("bpn")
@@ -150,8 +140,7 @@ Deno.serve(async (req) => {
 
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {
-    status,
-    headers: { ...CORS, "Content-Type": "application/json" },
+    status, headers: { ...CORS, "Content-Type": "application/json" },
   });
 }
 
@@ -175,12 +164,8 @@ async function fetchSub(sub: string, limit: number): Promise<Signal[]> {
       .filter((c: { data: { stickied?: boolean } }) => !c.data.stickied)
       .map((c: { data: Record<string, unknown> }) => {
         const p = c.data as {
-          id: string;
-          title: string;
-          ups: number;
-          num_comments: number;
-          created_utc: number;
-          permalink: string;
+          id: string; title: string; ups: number;
+          num_comments: number; created_utc: number; permalink: string;
         };
         const ageH = Math.max(1, (Date.now() / 1000 - p.created_utc) / 3600);
         const v = Math.min(10, Math.round(Math.log2(1 + (p.ups + p.num_comments * 3) / ageH)));
@@ -190,7 +175,7 @@ async function fetchSub(sub: string, limit: number): Promise<Signal[]> {
           fullTitle: p.title,
           source: "Reddit r/" + sub,
           velocity: v,
-          notes: `${p.num_comments} comments - ${p.ups} upvotes - ${Math.round(ageH)}h ago`,
+          notes: `${p.num_comments} comments · ${p.ups} upvotes · ${Math.round(ageH)}h ago`,
           url: "https://reddit.com" + p.permalink,
           category: guessCat(p.title),
           ts: p.created_utc * 1000,

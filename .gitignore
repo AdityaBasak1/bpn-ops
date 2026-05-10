@@ -11,3 +11,9 @@ supabase/.branches/
 
 # Local-only developer notes (not for the team)
 USER_GUIDE.md
+
+# Environment / secrets — never commit these
+.env
+.env.local
+.env.*.local
+supabase/functions/.env
