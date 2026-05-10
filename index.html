@@ -96,7 +96,7 @@ let st={
   tsf:{name:"",url:"",category:"",price:25,note:""},
   pf:{platform:PLATS[0],caption:""},
   autoSignals:JSON.parse(localStorage.getItem("bpn-auto")||"[]"),
-  scanning:false, lastScan:+(localStorage.getItem("bpn-ls")||0), lastLLMError:"",
+  scanning:false, scanStarted:0, lastScan:+(localStorage.getItem("bpn-ls")||0), lastLLMError:"",
   authErr:"", authMode:"login", showSetup:false,
   teamInput:"", teamNameInput:"",
   isTeamAdmin:false,
@@ -220,9 +220,13 @@ async function fetchReddit(sub,limit=15){
 function guessCat(t){t=t.toLowerCase();if(/kit|jersey|shirt|wear/.test(t))return"Apparel";if(/poster|art|print|photo/.test(t))return"Art/Prints";if(/scarf|hat|flag|badge/.test(t))return"Accessories";return""}
 
 async function scanNow(){
-  S({scanning:true,scanProgress:"Fetching Reddit..."});
+  // Safety: if a previous scan got stuck, reset it
+  if(st.scanning&&st.scanStarted&&(Date.now()-st.scanStarted)>120000){
+    S({scanning:false,scanProgress:""});return;
+  }
+  S({scanning:true,scanStarted:Date.now(),scanProgress:"Fetching Reddit..."});
   try{
-    // Step 1: fetch Reddit in browser (server IPs get blocked by Reddit)
+    // Step 1: fetch Reddit in browser (server IPs blocked by Reddit)
     const[a,b,c]=await Promise.all([fetchReddit("soccer",15),fetchReddit("PremierLeague",10),fetchReddit("EFL",8)]);
     const all=[...a,...b,...c];
     const seen=new Set();
@@ -232,17 +236,18 @@ async function scanNow(){
     const lastScan=Date.now();
     localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
     localStorage.setItem("bpn-ls",String(lastScan));
-    S({autoSignals,lastScan,scanProgress:"Getting product ideas from Claude..."});
+    S({autoSignals,lastScan,scanProgress:"Finding products..."});
 
-    // Step 2: enrich top signals via llm-suggest edge function
+    // Step 2: enrich signals SEQUENTIALLY (one at a time) so each appears as it's ready
     const token=await getAuthToken();
     if(token&&st.teamId){
       const top=autoSignals.filter(s=>s.velocity>=6).slice(0,5);
-      let done=0;
-      const results=await Promise.all(top.map(async sig=>{
+      for(let i=0;i<top.length;i++){
+        const sig=top[i];
+        S({scanProgress:`Product ideas ${i+1}/${top.length}...`});
         try{
           const ctrl=new AbortController();
-          const timer=setTimeout(()=>ctrl.abort(),50000);
+          const timer=setTimeout(()=>ctrl.abort(),45000);
           const r=await fetch(`${SUPABASE_URL}/functions/v1/llm-suggest`,{
             method:"POST",
             headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
@@ -251,17 +256,18 @@ async function scanNow(){
           });
           clearTimeout(timer);
           const data=await r.json().catch(()=>null);
-          done++;S({scanProgress:`Ideas ${done}/${top.length}...`});
-          return{id:sig.id,products:data?.products||null};
-        }catch{return{id:sig.id,products:null}}
-      }));
-      results.forEach(({id,products})=>{
-        if(products){const idx=autoSignals.findIndex(s=>s.id===id);if(idx>=0)autoSignals[idx].products=products;}
-      });
-      localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
+          if(data?.products){
+            const idx=autoSignals.findIndex(s=>s.id===sig.id);
+            if(idx>=0){autoSignals[idx].products=data.products;}
+            // Show each signal's products as soon as they arrive
+            localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
+            S({autoSignals,scanProgress:`Product ideas ${i+1}/${top.length}...`});
+          }
+        }catch(e){console.warn("llm-suggest failed for signal",sig.id,e)}
+      }
     }
     S({autoSignals,lastScan,scanning:false,scanProgress:""});
-  }catch(e){console.error(e);S({scanning:false,scanProgress:""})}
+  }catch(e){console.error("scan error",e);S({scanning:false,scanProgress:""})}
 }
 
 

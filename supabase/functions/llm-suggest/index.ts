@@ -56,7 +56,7 @@ type Message = { role: string; content: string | unknown[] };
 async function runAgentLoop(userMessage: string): Promise<string> {
   const messages: Message[] = [{ role: "user", content: userMessage }];
 
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 4; i++) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
