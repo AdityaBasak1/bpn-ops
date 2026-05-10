@@ -238,35 +238,41 @@ async function scanNow(){
     localStorage.setItem("bpn-ls",String(lastScan));
     S({autoSignals,lastScan,scanProgress:"Finding products..."});
 
-    // Step 2: enrich signals SEQUENTIALLY (one at a time) so each appears as it's ready
+    // Step 2: enrich signals SEQUENTIALLY so each appears as soon as it's ready
     const token=await getAuthToken();
-    if(token&&st.teamId){
-      const top=autoSignals.filter(s=>s.velocity>=6).slice(0,5);
-      for(let i=0;i<top.length;i++){
-        const sig=top[i];
-        S({scanProgress:`Product ideas ${i+1}/${top.length}...`});
-        try{
-          const ctrl=new AbortController();
-          const timer=setTimeout(()=>ctrl.abort(),45000);
-          const r=await fetch(`${SUPABASE_URL}/functions/v1/llm-suggest`,{
-            method:"POST",
-            headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-            body:JSON.stringify({headline:sig.fullTitle,team_id:st.teamId,source:sig.source,notes:sig.notes}),
-            signal:ctrl.signal
-          });
-          clearTimeout(timer);
-          const data=await r.json().catch(()=>null);
-          if(data?.products){
-            const idx=autoSignals.findIndex(s=>s.id===sig.id);
-            if(idx>=0){autoSignals[idx].products=data.products;}
-            // Show each signal's products as soon as they arrive
-            localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
-            S({autoSignals,scanProgress:`Product ideas ${i+1}/${top.length}...`});
-          }
-        }catch(e){console.warn("llm-suggest failed for signal",sig.id,e)}
+    if(!token){S({autoSignals,lastScan,scanning:false,scanProgress:"",lastLLMError:"Not signed in"});return}
+    if(!st.teamId){S({autoSignals,lastScan,scanning:false,scanProgress:"",lastLLMError:"No team found"});return}
+    const top=autoSignals.filter(s=>s.velocity>=6).slice(0,5);
+    let lastErr="";
+    for(let i=0;i<top.length;i++){
+      const sig=top[i];
+      S({scanProgress:`Getting ideas ${i+1}/${top.length}...`});
+      try{
+        const ctrl=new AbortController();
+        const timer=setTimeout(()=>ctrl.abort(),30000);
+        const r=await fetch(`${SUPABASE_URL}/functions/v1/llm-suggest`,{
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+          body:JSON.stringify({headline:sig.fullTitle,team_id:st.teamId,source:sig.source,notes:sig.notes}),
+          signal:ctrl.signal
+        });
+        clearTimeout(timer);
+        const data=await r.json().catch(()=>null);
+        if(data?.products&&data.products.length>0){
+          const idx=autoSignals.findIndex(s=>s.id===sig.id);
+          if(idx>=0)autoSignals[idx].products=data.products;
+          localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
+          S({autoSignals});
+        } else if(data?.error){
+          lastErr=`Signal ${i+1}: ${data.error}`;
+          console.warn("llm-suggest error:",data.error);
+        }
+      }catch(e){
+        lastErr=`Signal ${i+1}: ${e.name==="AbortError"?"timeout after 30s":e.message}`;
+        console.warn("llm-suggest failed",sig.id,e);
       }
     }
-    S({autoSignals,lastScan,scanning:false,scanProgress:""});
+    S({autoSignals,lastScan,scanning:false,scanProgress:"",lastLLMError:lastErr});
   }catch(e){console.error("scan error",e);S({scanning:false,scanProgress:""})}
 }
 
