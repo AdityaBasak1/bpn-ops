@@ -1,26 +1,28 @@
 // Shared LLM prompt + message builder for bpn-ops edge functions.
 // callLLM retained for backward compatibility but new code should use callClaude from claude.ts.
 
-export const LLM_PROMPT = `You are a TikTok Shop affiliate product expert for a UK football podcast account (@thebluepodcastnetwork, 13K followers). Given a football moment, suggest exactly 3 real products available on TikTok Shop UK right now.
+export const LLM_PROMPT = `You are a TikTok Shop affiliate expert for a UK football podcast (13K followers). Given a football moment, suggest exactly 3 products a fan would impulse-buy on TikTok Shop UK.
 
-RULES — no exceptions:
+STEP 1 — Identify the clubs and players named in the headline.
+STEP 2 — Your first 1-2 suggestions MUST be fan merchandise for those specific clubs/players: scarves, beanies, hats, badge sets, pin badges, sticker albums, mini kits, pennants, posters, collectible cards, foam fingers, club drinkware. These always sell to football fans.
+STEP 3 — Your 3rd suggestion must be a trending or cool football-themed product on TikTok Shop UK right now: football video games (EA FC, Football Manager), novelty football gadgets, football-themed drinkware, keyrings, wall clocks, LED lights, trading card packs, mini table football sets, or any viral football product currently performing on TikTok. Think "what would a football fan impulse-buy while scrolling TikTok at midnight".
+
+RULES:
 - Exactly 3 products
-- Must exist on TikTok Shop UK today (fan merch, accessories, collectibles, fitness, home, tech, food, games, books)
-- Triggered by THIS specific moment — not generic football items
-- Price £5–£40 (TikTok Shop impulse-buy range)
-- search: 2–3 plain keywords a viewer would type into TikTok Shop (no punctuation, no brand names unless very well known)
-- hook: one punchy sentence — the TikTok video angle that makes this product irresistible right now
-- NO print-on-demand, NO custom orders, NO Amazon-only products
+- Must be buyable on TikTok Shop UK today (£5–£40)
+- search: 2–3 plain words someone types into TikTok Shop (no punctuation, include club name or player name where relevant)
+- hook: one punchy sentence — why fans will buy this RIGHT NOW
+- NO print-on-demand, NO custom orders
 
-Examples by moment type:
-- Referee/VAR controversy → referee whistle set, red card novelty item, referee kit costume
-- Star player scores → club scarf, mini goal net, player poster
-- Promotion/relegation → celebration flag, foam stadium finger, confetti cannon
-- Injury news → foam roller, reusable ice pack, resistance bands
-- Transfer rumour → mystery shirt box, club badge pin set, sticker album
+Examples:
+- "Mbappé misses training" → PSG scarf, PSG badge pin set, EA FC 25 video game
+- "Arsenal beat PSG 2-0" → Arsenal FC scarf, Arsenal badge set, football trading card pack
+- "VAR controversy in Man City match" → Man City beanie hat, Man City pennant, referee whistle set
+- "Liverpool win the title" → Liverpool FC scarf, Liverpool badge pin set, football LED night light
+- "Transfer rumour: Salah to PSG" → Liverpool FC scarf, PSG scarf, Panini Premier League sticker album
 
-Return ONLY valid JSON, no markdown, no commentary:
-{"products":[{"name":"product name","search":"tiktok keywords","category":"Apparel|Accessories|Collectibles|Books|Games|Home|Tech|Food|Fitness|Other","hook":"video angle sentence","price":20}]}`;
+Return ONLY valid JSON, no markdown:
+{"products":[{"name":"product name","search":"tiktok search keywords","category":"Apparel|Accessories|Collectibles|Books|Games|Home|Tech|Food|Fitness|Other","hook":"one sentence hook","price":20}]}`;
 
 export type Product = {
   name: string;
