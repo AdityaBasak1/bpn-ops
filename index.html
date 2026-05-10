@@ -254,7 +254,7 @@ async function scanNow(){
     const token=await getAuthToken();
     if(!token){S({autoSignals,lastScan,scanning:false,scanProgress:"",lastLLMError:"Not signed in"});return}
     if(!st.teamId){S({autoSignals,lastScan,scanning:false,scanProgress:"",lastLLMError:"No team found"});return}
-    const top=autoSignals.filter(s=>s.velocity>=6).slice(0,5);
+    const top=autoSignals.slice(0,5); // enrich top 5 regardless of velocity
     let lastErr="";
     for(let i=0;i<top.length;i++){
       const sig=top[i];
@@ -952,6 +952,37 @@ function render(){
         div.appendChild(card);
       });
     }));
+    if(restA.length>0)main.appendChild(sec("More Signals ("+restA.length+")",div=>{
+      restA.forEach(s=>{
+        const card=h("div",{style:{background:"var(--s1)",borderLeft:"3px solid var(--border)",borderRadius:"6px",marginBottom:"6px",overflow:"hidden"}});
+        card.appendChild(h("div",{style:{display:"flex",alignItems:"flex-start",gap:"6px",padding:"8px 10px"}},
+          h("div",{style:{flex:"1",minWidth:0}},
+            h("div",{style:{fontWeight:600,color:"var(--text)",fontSize:"13px",lineHeight:"1.3"}},s.keyword),
+            h("div",{style:{fontSize:"11px",color:"var(--text4)",marginTop:"2px"}},s.source+" - "+s.notes)
+          ),
+          h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",flexShrink:0}},
+            h("div",{style:{fontWeight:700,fontSize:"14px",color:"var(--text3)"}},"v"+s.velocity),
+            h("button",{style:{background:"none",border:"1px solid #334155",color:"var(--text2)",fontSize:"10px",padding:"2px 6px",borderRadius:"3px",cursor:"pointer"},onClick:()=>promoteSignal(s)},"Save")
+          )
+        ));
+        if(s.products&&s.products.length>0){
+          const pWrap=h("div",{style:{padding:"0 10px 10px",borderTop:"1px solid rgba(255,255,255,.05)"}});
+          pWrap.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text4)",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginTop:"8px",marginBottom:"6px"}},"Products to promote"));
+          s.products.forEach(p=>{
+            const pc=h("div",{style:{background:"var(--s2)",borderRadius:"5px",marginBottom:"6px",padding:"8px 10px"}});
+            pc.appendChild(h("div",{style:{fontSize:"13px",fontWeight:600,color:"var(--text)"}},p.name));
+            if(p.hook||p.desc)pc.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text4)",marginTop:"2px",lineHeight:"1.4"}},(p.hook||p.desc)));
+            pc.appendChild(h("div",{style:{display:"flex",gap:"6px",marginTop:"4px",alignItems:"center"}},
+              h("span",{style:{fontSize:"11px",background:"rgba(139,92,246,.15)",color:"var(--accent-text)",padding:"1px 6px",borderRadius:"8px"}},p.category),
+              h("span",{style:{fontSize:"11px",color:"var(--text2)"}},"~£"+p.price)
+            ));
+            pWrap.appendChild(pc);
+          });
+          card.appendChild(pWrap);
+        }
+        div.appendChild(card);
+      });
+    },true));
     if(autoSignals.length===0&&!st.scanning)main.appendChild(h("div",{style:{textAlign:"center",padding:"16px",color:"var(--text3)",border:"1px dashed #334155",borderRadius:"8px",marginBottom:"14px",fontSize:"14px"}},"Hit Scan Now to pull trending football topics"));
 
     // ═══ TikTok Shop Bestsellers (manual scan) ═══
