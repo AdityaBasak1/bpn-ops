@@ -219,47 +219,43 @@ async function fetchReddit(sub,limit=15){
   try{const r=await fetch("https://www.reddit.com/r/"+sub+"/hot.json?limit="+limit+"&raw_json=1");if(!r.ok)return[];const d=await r.json();return(d.data.children||[]).filter(c=>!c.data.stickied).map(c=>{const p=c.data;const ageH=Math.max(1,(Date.now()/1000-p.created_utc)/3600);const v=Math.min(10,Math.round(Math.log2(1+(p.ups+p.num_comments*3)/ageH)));return{id:"a-"+p.id,keyword:p.title.length>80?p.title.slice(0,77)+"...":p.title,fullTitle:p.title,source:"Reddit r/"+sub,velocity:v,notes:p.num_comments+" comments - "+p.ups+" upvotes - "+Math.round(ageH)+"h ago",url:"https://reddit.com"+p.permalink,category:guessCat(p.title),ts:p.created_utc*1000,auto:true,products:null}})}catch{return[]}}
 function guessCat(t){t=t.toLowerCase();if(/kit|jersey|shirt|wear/.test(t))return"Apparel";if(/poster|art|print|photo/.test(t))return"Art/Prints";if(/scarf|hat|flag|badge/.test(t))return"Accessories";return""}
 
-async function triggerServerScan(){
-  const token=await getAuthToken();
-  if(!token)return false;
-  try{
-    const r=await fetch(`${SUPABASE_URL}/functions/v1/scan-signals`,{
-      method:"POST",
-      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-      body:"{}"
-    });
-    if(!r.ok)return false;
-    const data=await r.json().catch(()=>null);
-    return !!(data&&data.ok&&data.signals_written>0);
-  }catch{return false}
-}
-
 async function scanNow(){
-  S({scanning:true,scanProgress:"Scanning..."});
-  // Preferred: server-side scan with Claude enrichment
-  S({scanProgress:"Scanning Reddit + generating ideas..."});
-  const ok=await triggerServerScan();
-  if(ok){
-    const autoFromDB=await dbLoad("auto_signal");
-    const autoSignals=autoFromDB.map(r=>r.payload);
-    const lastScan=autoSignals.reduce((m,s)=>Math.max(m,s.ts||0),Date.now());
-    localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
-    localStorage.setItem("bpn-ls",String(lastScan));
-    S({autoSignals,lastScan,scanning:false,scanProgress:""});
-    return;
-  }
-  // Fallback: fetch Reddit directly in browser (no AI enrichment)
+  S({scanning:true,scanProgress:"Fetching Reddit..."});
   try{
-    S({scanProgress:"Fetching Reddit..."});
+    // Step 1: fetch Reddit in browser (server IPs get blocked by Reddit)
     const[a,b,c]=await Promise.all([fetchReddit("soccer",15),fetchReddit("PremierLeague",10),fetchReddit("EFL",8)]);
     const all=[...a,...b,...c];
     const seen=new Set();
     const dd=all.filter(s=>{const k=s.keyword.toLowerCase().slice(0,30);if(seen.has(k))return false;seen.add(k);return true});
     dd.sort((a,b)=>b.velocity-a.velocity);
-    const autoSignals=dd.slice(0,20);
+    let autoSignals=dd.slice(0,20);
     const lastScan=Date.now();
     localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
     localStorage.setItem("bpn-ls",String(lastScan));
+    S({autoSignals,lastScan,scanProgress:"Getting product ideas from Claude..."});
+
+    // Step 2: enrich top signals via llm-suggest edge function
+    const token=await getAuthToken();
+    if(token&&st.teamId){
+      const top=autoSignals.filter(s=>s.velocity>=6).slice(0,5);
+      let done=0;
+      const results=await Promise.all(top.map(async sig=>{
+        try{
+          const r=await fetch(`${SUPABASE_URL}/functions/v1/llm-suggest`,{
+            method:"POST",
+            headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+            body:JSON.stringify({headline:sig.fullTitle,team_id:st.teamId,source:sig.source,notes:sig.notes})
+          });
+          const data=await r.json().catch(()=>null);
+          done++;S({scanProgress:`Ideas ${done}/${top.length}...`});
+          return{id:sig.id,products:data?.products||null};
+        }catch{return{id:sig.id,products:null}}
+      }));
+      results.forEach(({id,products})=>{
+        if(products){const idx=autoSignals.findIndex(s=>s.id===id);if(idx>=0)autoSignals[idx].products=products;}
+      });
+      localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
+    }
     S({autoSignals,lastScan,scanning:false,scanProgress:""});
   }catch(e){console.error(e);S({scanning:false,scanProgress:""})}
 }
