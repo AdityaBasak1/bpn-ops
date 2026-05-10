@@ -231,26 +231,26 @@ function guessCat(t){t=t.toLowerCase();if(/kit|jersey|shirt|wear/.test(t))return
 
 async function scanNow(){
   console.log("[scan] start");
-  // Safety: if a previous scan got stuck, reset it
   if(st.scanning&&st.scanStarted&&(Date.now()-st.scanStarted)>120000){
     S({scanning:false,scanProgress:""});return;
   }
-  S({scanning:true,scanStarted:Date.now(),scanProgress:"Fetching Reddit...",lastLLMError:""});
+  S({scanning:true,scanStarted:Date.now(),scanProgress:"Fetching news...",lastLLMError:""});
   try{
-    // Step 1: fetch Reddit in browser (server IPs blocked by Reddit)
-    console.log("[scan] fetching reddit...");
-    const[a,b,c]=await Promise.all([fetchReddit("soccer",15),fetchReddit("PremierLeague",10),fetchReddit("EFL",8)]);
-    console.log("[scan] reddit results:",a.length,b.length,c.length);
-    const all=[...a,...b,...c];
-    if(all.length===0){
-      S({scanning:false,scanProgress:"",lastLLMError:"Reddit returned 0 signals — try again in a minute or check your network/extensions"});
-      return;
+    // Step 1: fetch football news via ESPN proxy (Reddit blocks Supabase IPs and may block browser)
+    console.log("[scan] fetching ESPN news via proxy...");
+    const newsR=await fetch(`${SUPABASE_URL}/functions/v1/reddit-fetch`,{
+      headers:{"Authorization":"Bearer "+SUPABASE_KEY}
+    }).catch(e=>{console.error("[scan] news fetch error",e);return null});
+    if(!newsR||!newsR.ok){
+      S({scanning:false,scanProgress:"",lastLLMError:"News fetch failed: "+(newsR?.status||"network error")});return;
     }
-    const seen=new Set();
-    const dd=all.filter(s=>{const k=s.keyword.toLowerCase().slice(0,30);if(seen.has(k))return false;seen.add(k);return true});
-    dd.sort((a,b)=>b.velocity-a.velocity);
-    let autoSignals=dd.slice(0,20);
-    console.log("[scan] dedup signals:",autoSignals.length);
+    const newsData=await newsR.json().catch(()=>null);
+    let autoSignals=newsData?.signals||[];
+    console.log("[scan] news signals:",autoSignals.length);
+    if(autoSignals.length===0){
+      S({scanning:false,scanProgress:"",lastLLMError:"News returned 0 signals — ESPN may be down"});return;
+    }
+    autoSignals=autoSignals.slice(0,20);
     const lastScan=Date.now();
     localStorage.setItem("bpn-auto",JSON.stringify(autoSignals));
     localStorage.setItem("bpn-ls",String(lastScan));
