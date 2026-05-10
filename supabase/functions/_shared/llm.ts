@@ -1,5 +1,41 @@
-// Shared LLM prompt + message builder for bpn-ops edge functions.
-// callLLM retained for backward compatibility but new code should use callClaude from claude.ts.
+// Shared LLM prompts, tools, and helpers for bpn-ops edge functions.
+
+// ── Agent mode (with Brave Search tool) ──────────────────────────────────────
+
+export const SEARCH_TOOL = {
+  name: "search_tiktok_shop",
+  description: "Search the web to find real products available on TikTok Shop UK. Always use this before suggesting any product — do not guess product names.",
+  input_schema: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "Search query to find the product on TikTok Shop, e.g. 'PSG scarf TikTok Shop UK' or 'Arsenal badge pin set TikTok Shop'",
+      },
+    },
+    required: ["query"],
+  },
+};
+
+export const AGENT_PROMPT = `You are a TikTok Shop affiliate product expert for @thebluepodcastnetwork, a UK football podcast with 13K followers. Given a football moment, find exactly 3 REAL products on TikTok Shop UK that fans would impulse-buy.
+
+YOU MUST use the search_tiktok_shop tool to verify every product before suggesting it. Do not guess product names.
+
+PRODUCT SLOTS:
+- Slot 1: Fan merchandise for the main club/player mentioned (scarf, hat, beanie, badge set, pin badges, pennant, mini kit, club drinkware, poster)
+- Slot 2: Second fan merch or collectible (sticker album, trading cards, collectible figure, foam finger, keyring)
+- Slot 3: Trending football TikTok product (EA FC video game, Panini sticker album, football LED night light, novelty gadget, mini table football)
+
+SEARCH STRATEGY:
+- Include "TikTok Shop UK" in every search query
+- Use the club/player name from the headline (e.g. "Arsenal scarf TikTok Shop UK")
+- Pick the most relevant real product from search results
+- Price must be £5–£40
+
+After searching all 3 products, return ONLY valid JSON — no markdown, no commentary:
+{"products":[{"name":"exact product name from search results","search":"2-3 word TikTok search","category":"Apparel|Accessories|Collectibles|Books|Games|Home|Tech|Food|Fitness|Other","hook":"one punchy TikTok video angle sentence","price":15}]}`;
+
+// ── Legacy prompt (used by scan-signals fallback) ─────────────────────────────
 
 export const LLM_PROMPT = `You are a TikTok Shop affiliate expert for a UK football podcast (13K followers). Given a football moment, suggest exactly 3 products a fan would impulse-buy on TikTok Shop UK.
 
