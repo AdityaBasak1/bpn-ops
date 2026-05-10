@@ -239,6 +239,18 @@ async function scanNow(){
     S({autoSignals,lastScan,scanProgress:"Finding products..."});
 
     // Step 2: enrich signals SEQUENTIALLY so each appears as soon as it's ready
+    // First verify the function works at all (no-auth test)
+    const testR=await fetch(`${SUPABASE_URL}/functions/v1/llm-suggest?test=1`,{
+      headers:{"Authorization":"Bearer "+SUPABASE_KEY}
+    }).catch(()=>null);
+    if(!testR||!testR.ok){
+      S({autoSignals,lastScan,scanning:false,scanProgress:"",lastLLMError:"Function unreachable: "+(testR?.status||"network error")});return;
+    }
+    const testData=await testR.json().catch(()=>null);
+    if(!testData?.ok){
+      S({autoSignals,lastScan,scanning:false,scanProgress:"",lastLLMError:"Claude error: "+(testData?.error||"unknown")});return;
+    }
+
     const token=await getAuthToken();
     if(!token){S({autoSignals,lastScan,scanning:false,scanProgress:"",lastLLMError:"Not signed in"});return}
     if(!st.teamId){S({autoSignals,lastScan,scanning:false,scanProgress:"",lastLLMError:"No team found"});return}
