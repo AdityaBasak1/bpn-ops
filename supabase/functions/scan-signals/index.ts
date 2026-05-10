@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       const results = await Promise.all(
         top.map(async (sig) => {
           try {
-            const text = await callClaude(LLM_PROMPT, buildMessage(sig.fullTitle, sig.source, sig.notes));
+            const text = await callClaude(LLM_PROMPT, buildMessage(sig.fullTitle, sig.source, sig.notes), "claude-haiku-4-5-20251001");
             const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
             const parsed = JSON.parse(cleaned);
             return { id: sig.id, products: parsed.products || null };
