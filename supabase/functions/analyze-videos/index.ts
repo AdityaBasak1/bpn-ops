@@ -25,6 +25,29 @@ function json(obj: unknown, status = 200): Response {
   });
 }
 
+// Best-effort repair of truncated JSON: close any unterminated string,
+// then close any open brackets/braces in reverse order.
+function repairJSON(s: string): string {
+  let inStr = false, escape = false;
+  const stack: string[] = [];
+  for (const c of s) {
+    if (escape) { escape = false; continue; }
+    if (c === "\\" && inStr) { escape = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === "{") stack.push("}");
+    else if (c === "[") stack.push("]");
+    else if (c === "}" || c === "]") stack.pop();
+  }
+  let out = s;
+  if (inStr) out += '"';
+  // If the response ended in the middle of a value/key, trim trailing comma/colon
+  out = out.replace(/[,:\s]+$/, "");
+  // Close all unclosed containers
+  while (stack.length) out += stack.pop();
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -77,9 +100,23 @@ Deno.serve(async (req) => {
 
   try {
     const context = buildInsightsContext(snapshots);
-    const text = await callClaude(INSIGHTS_PROMPT, context, "claude-sonnet-4-6");
+    const text = await callClaude(INSIGHTS_PROMPT, context, "claude-sonnet-4-6", 4096);
     const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-    const insights = JSON.parse(cleaned);
+    let insights: unknown;
+    try {
+      insights = JSON.parse(cleaned);
+    } catch (parseErr) {
+      // Try to repair truncated JSON: close any unterminated strings + close braces/brackets
+      const repaired = repairJSON(cleaned);
+      try {
+        insights = JSON.parse(repaired);
+      } catch {
+        throw new Error(
+          `Claude returned malformed JSON (${(parseErr as Error).message}). ` +
+          `First 500 chars: ${cleaned.slice(0, 500)}`,
+        );
+      }
+    }
 
     // Cache the result (upsert by item_id)
     const itemId = "latest-insights";

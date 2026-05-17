@@ -7,6 +7,7 @@ export async function callClaude(
   systemPrompt: string,
   userMessage: string,
   model = "claude-opus-4-7",
+  maxTokens = 1024,
 ): Promise<string> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
@@ -20,7 +21,7 @@ export async function callClaude(
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1024,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
     }),
