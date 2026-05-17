@@ -103,6 +103,9 @@ let st={
   signals:[], posts:[], promos:[],
   // Latest TikTok Studio CSV snapshots, keyed by kind
   studio:{contentTop:null,overview:null,viewers:null,history:null,activity:null,gender:null,countries:null},
+  insightRun:null,         // {insights, generatedAt, ts} from analyze-videos
+  insightRunning:false,    // true while analyze-videos call is in flight
+  insightError:"",
   sf:{keyword:"",source:SOURCES[0],velocity:5,notes:"",category:""},
   tsf:{name:"",url:"",category:"",price:25,note:""},
   pf:{platform:PLATS[0],caption:""},
@@ -137,8 +140,8 @@ async function dbDelete(type,itemId){
   await sb.from("bpn").delete().eq("item_id",itemId).eq("team_id",st.teamId);
 }
 async function loadAll(){
-  const[signals,posts,promos,autoFromDB,studioFromDB]=await Promise.all([
-    dbLoad("signal"),dbLoad("post"),dbLoad("promo"),dbLoad("auto_signal"),dbLoad("studio_snapshot")
+  const[signals,posts,promos,autoFromDB,studioFromDB,insightFromDB]=await Promise.all([
+    dbLoad("signal"),dbLoad("post"),dbLoad("promo"),dbLoad("auto_signal"),dbLoad("studio_snapshot"),dbLoad("insight_run")
   ]);
   // Merge server-side auto_signals over the localStorage cache
   let autoSignals=st.autoSignals;
@@ -156,7 +159,9 @@ async function loadAll(){
     const slot=STUDIO_KINDS[r.kind];
     if(slot&&(!studio[slot]||(r.ts||0)>(studio[slot].ts||0)))studio[slot]=r;
   });
-  S({signals,posts,promos,autoSignals,studio,screen:"roar"});
+  // Latest insight run (single row)
+  const insightRun=(insightFromDB||[]).sort((a,b)=>(b.ts||0)-(a.ts||0))[0]||null;
+  S({signals,posts,promos,autoSignals,studio,insightRun,screen:"roar"});
 }
 
 
@@ -230,6 +235,35 @@ async function joinTeam(code){
   if(e2&&!e2.message.includes("duplicate"))return S({authErr:"Could not join team: "+e2.message});
   st.teamId=team.id;st.teamName=team.name;
   await loadAll();
+}
+
+// ─── AI Insights: Claude-powered video analysis ───
+async function runInsights(){
+  if(st.insightRunning)return;
+  if(!st.teamId){S({insightError:"No team"});return}
+  const token=await getAuthToken();
+  if(!token){S({insightError:"Not signed in"});return}
+  S({insightRunning:true,insightError:""});
+  try{
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),90000); // 90s ceiling
+    const r=await fetch(`${SUPABASE_URL}/functions/v1/analyze-videos`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body:JSON.stringify({team_id:st.teamId}),
+      signal:ctrl.signal
+    });
+    clearTimeout(timer);
+    const data=await r.json().catch(()=>null);
+    if(!r.ok||!data?.insights){
+      S({insightRunning:false,insightError:data?.error||"Analysis failed ("+r.status+")"});
+      return;
+    }
+    const insightRun={insights:data.insights,generatedAt:data.generatedAt,ts:Date.now()};
+    S({insightRun,insightRunning:false,insightError:""});
+  }catch(e){
+    S({insightRunning:false,insightError:e.name==="AbortError"?"Timed out after 90s":(e.message||"Request failed")});
+  }
 }
 
 // ─── Auto-scan + Claude Product Suggestions ───
@@ -852,6 +886,94 @@ function deltaBars(data,{w=320,h=50,posColor="#22c55e",negColor="#ef4444"}={}){
   return h("div",{style:{width:"100%"}},svg);
 }
 
+// ─── Insights card render ───
+function renderInsightsCard(){
+  const box=h("div",{style:{padding:"12px",background:"linear-gradient(135deg,rgba(139,92,246,.10),rgba(255,0,79,.06))",border:"1px solid rgba(139,92,246,.3)",borderRadius:"10px",marginBottom:"14px"}});
+  const header=h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px",flexWrap:"wrap",gap:"6px"}});
+  header.appendChild(h("div",{style:{fontSize:"14px",fontWeight:800,color:"#8b5cf6"}},"🧠 AI Insights"));
+  const hasData=st.studio?.contentTop||st.studio?.overview;
+  if(!hasData){
+    header.appendChild(h("span",{style:{fontSize:"11px",color:"var(--text3)"}},"Import Studio CSVs ↓"));
+    box.appendChild(header);
+    box.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text2)",lineHeight:"1.5"}},"Drop your TikTok Studio CSVs into the zone below, then click Get AI Insights to have Claude analyse what's working."));
+    return box;
+  }
+  const runBtn=h("button",{style:{background:st.insightRunning?"var(--border)":"#8b5cf6",border:"none",color:"#fff",fontSize:"12px",fontWeight:700,padding:"6px 12px",borderRadius:"6px",cursor:st.insightRunning?"wait":"pointer"},disabled:st.insightRunning,onClick:runInsights},
+    st.insightRunning?"Analysing...":(st.insightRun?"↻ Re-analyse":"🧠 Get AI Insights"));
+  header.appendChild(runBtn);
+  box.appendChild(header);
+  if(st.insightError){
+    box.appendChild(h("div",{style:{padding:"8px 10px",background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.3)",borderRadius:"5px",fontSize:"12px",color:"#fca5a5",marginBottom:"8px"}},"Error: "+st.insightError));
+  }
+  if(st.insightRunning){
+    box.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text2)",padding:"12px",textAlign:"center"}},"Claude is analysing your last year of data — typically 10-20 seconds…"));
+    return box;
+  }
+  const ins=st.insightRun?.insights;
+  if(!ins){
+    box.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text2)",lineHeight:"1.5"}},"Click Get AI Insights to have Claude analyse your videos, daily metrics, and audience data to recommend what to make next."));
+    return box;
+  }
+  // Summary
+  if(ins.summary){
+    box.appendChild(h("div",{style:{fontSize:"13px",color:"var(--text)",lineHeight:"1.5",marginBottom:"10px",padding:"8px 10px",background:"rgba(255,255,255,.04)",borderLeft:"3px solid #8b5cf6",borderRadius:"4px"}},ins.summary));
+  }
+  // Sections (each collapsible via sec())
+  const section=(title,icon,items,renderItem,defaultOpen)=>{
+    if(!items||!items.length)return null;
+    box.appendChild(sec(icon+" "+title+" ("+items.length+")",div=>{
+      items.forEach(item=>div.appendChild(renderItem(item)));
+    },!defaultOpen));
+  };
+  section("What's working","🎯",ins.winningPatterns,(p)=>{
+    const c=h("div",{style:{padding:"8px 10px",background:"rgba(34,197,94,.08)",borderLeft:"3px solid #22c55e",borderRadius:"4px",marginBottom:"5px"}});
+    c.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:"#22c55e"}},p.pattern));
+    if(p.evidence)c.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text2)",marginTop:"2px",lineHeight:"1.5"}},p.evidence));
+    if(p.metric)c.appendChild(h("div",{style:{fontSize:"11px",color:"#22c55e",fontWeight:600,marginTop:"3px"}},p.metric));
+    return c;
+  },true);
+  section("What to avoid","⚠️",ins.losingPatterns,(p)=>{
+    const c=h("div",{style:{padding:"8px 10px",background:"rgba(239,68,68,.06)",borderLeft:"3px solid #ef4444",borderRadius:"4px",marginBottom:"5px"}});
+    c.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:"#fca5a5"}},p.pattern));
+    if(p.evidence)c.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text2)",marginTop:"2px",lineHeight:"1.5"}},p.evidence));
+    return c;
+  });
+  section("Next video ideas","💡",ins.nextVideoIdeas,(idea)=>{
+    const c=h("div",{style:{padding:"8px 10px",background:"rgba(245,158,11,.06)",borderLeft:"3px solid #f59e0b",borderRadius:"4px",marginBottom:"5px"}});
+    c.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:"#fbbf24",lineHeight:"1.4"}},idea.title));
+    if(idea.rationale)c.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text2)",marginTop:"3px",lineHeight:"1.5"}},idea.rationale));
+    if(idea.predictedViewRange)c.appendChild(h("div",{style:{fontSize:"11px",color:"#f59e0b",fontWeight:600,marginTop:"3px"}},"Predicted views: "+idea.predictedViewRange));
+    return c;
+  });
+  if(ins.bestTiming){
+    box.appendChild(sec("⏰ Best timing",div=>{
+      const c=h("div",{style:{padding:"10px",background:"var(--s1)",borderRadius:"5px",lineHeight:"1.5"}});
+      c.appendChild(h("div",{style:{fontSize:"14px",fontWeight:700,color:"var(--text)"}},(ins.bestTiming.day?ins.bestTiming.day+", ":"")+(ins.bestTiming.hour!=null?ins.bestTiming.hour+":00 BST":"")));
+      if(ins.bestTiming.reason)c.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text2)",marginTop:"4px"}},ins.bestTiming.reason));
+      div.appendChild(c);
+    },true));
+  }
+  section("Demographics","👥",ins.demographics,(d)=>{
+    const c=h("div",{style:{padding:"8px 10px",background:"var(--s1)",borderRadius:"4px",marginBottom:"5px"}});
+    c.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text)",lineHeight:"1.5"}},d.insight));
+    if(d.action)c.appendChild(h("div",{style:{fontSize:"11px",color:"#8b5cf6",fontWeight:600,marginTop:"3px"}},"→ "+d.action));
+    return c;
+  });
+  section("Trend warnings","📉",ins.trendWarnings,(w)=>{
+    const c=h("div",{style:{padding:"8px 10px",background:"rgba(245,158,11,.08)",borderLeft:"3px solid #f59e0b",borderRadius:"4px",marginBottom:"5px"}});
+    c.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:"#fbbf24"}},w.warning));
+    if(w.evidence)c.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text2)",marginTop:"2px",lineHeight:"1.5"}},w.evidence));
+    return c;
+  });
+  // Footer with timestamp
+  if(st.insightRun?.generatedAt){
+    const ago=Math.round((Date.now()-new Date(st.insightRun.generatedAt).getTime())/60000);
+    const agoText=ago<60?ago+"m ago":Math.round(ago/60)+"h ago";
+    box.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text4)",marginTop:"8px",textAlign:"right"}},"Last analysed "+agoText+" · Sonnet 4.6"));
+  }
+  return box;
+}
+
 // ─── DOM helpers ───
 function h(tag,attrs,...ch){const el=document.createElement(tag);if(attrs)Object.entries(attrs).forEach(([k,v])=>{if(k==="style"&&typeof v==="object")Object.assign(el.style,v);else if(k.startsWith("on"))el.addEventListener(k.slice(2).toLowerCase(),v);else if(k==="className")el.className=v;else if(k==="innerHTML")el.innerHTML=v;else if(["value","placeholder","type","rows","min","max","href","target","rel","disabled","checked"].includes(k))el[k]=v;else el.setAttribute(k,v)});ch.flat(9).forEach(c=>{if(c!=null&&c!==false)el.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(String(c)):c)});return el}
 function lnk(item){return h("a",{href:item.url,target:"_blank",rel:"noopener noreferrer",className:"lc"},h("div",{style:{fontSize:"14px",fontWeight:600,color:"var(--accent-text)"}},item.label+" >"),h("div",{style:{fontSize:"12px",color:"var(--text4)",marginTop:"1px"}},item.desc))}
@@ -1149,6 +1271,15 @@ function render(){
         main.appendChild(h("div",{style:{padding:"8px 10px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.25)",borderRadius:"6px",fontSize:"12px",color:"var(--text2)",marginBottom:"12px",lineHeight:"1.5"}},
           "💡 Best post time: ",h("strong",{style:{color:"#22c55e"}},peak+":00 BST")," — that's when your followers peak online (",arr[peak].toLocaleString()," active)."
         ));
+      }
+      // Surface top AI insight if available
+      if(st.insightRun?.insights?.winningPatterns?.[0]){
+        const w=st.insightRun.insights.winningPatterns[0];
+        const card=h("div",{style:{padding:"8px 10px",background:"rgba(139,92,246,.08)",border:"1px solid rgba(139,92,246,.3)",borderRadius:"6px",fontSize:"12px",color:"var(--text2)",marginBottom:"12px",lineHeight:"1.5",cursor:"pointer"},onClick:()=>S({tab:"content"})});
+        card.appendChild(h("div",{style:{fontSize:"11px",color:"#8b5cf6",fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"2px"}},"🧠 Claude says"));
+        card.appendChild(h("div",null,h("strong",null,w.pattern),w.metric?" — "+w.metric:""));
+        card.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginTop:"3px"}},"Tap for full insights →"));
+        main.appendChild(card);
       }
     }
 
@@ -1567,6 +1698,10 @@ function render(){
   if(tab==="content"){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Content Hub"));
     main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"12px",margin:"0 0 12px"}},"Target: 10-20/wk. Podcast biweekly."));
+
+    // ─── AI Insights card ───
+    main.appendChild(renderInsightsCard());
+
     // Video analytics sync button
     if(cfg.creatorConnected){
       const syncRow=h("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"10px"}});
