@@ -69,16 +69,16 @@ export function buildInsightsContext(snapshots: {
     parts.push("");
   }
 
-  // ── Daily overview (compress to summary stats + recent 30 days raw) ──────
+  // ── Daily overview (CSVs are OLDEST-FIRST, so slice(-30) = most recent) ──
   const days = snapshots.overview?.days || [];
   if (days.length) {
-    const recent30 = days.slice(0, 30);
-    const prior30 = days.slice(30, 60);
+    const recent30 = days.slice(-30);       // most recent 30 days
+    const prior30 = days.slice(-60, -30);   // 30 days before that
     const sumViews = (arr: typeof days) => arr.reduce((s, d) => s + Number(d.views || 0), 0);
     const r30v = sumViews(recent30), p30v = sumViews(prior30);
     parts.push("## ACCOUNT-WIDE DAILY METRICS\n");
-    parts.push(`Total ${days.length} days of data. Recent 30d: ${r30v.toLocaleString()} views. Prior 30d: ${p30v.toLocaleString()} views. Change: ${p30v ? Math.round((r30v - p30v) / p30v * 100) : 0}%.\n`);
-    parts.push("Last 30 days (newest first):");
+    parts.push(`Total ${days.length} days of data. Last 30d: ${r30v.toLocaleString()} views. Prior 30d (days 30-60 ago): ${p30v.toLocaleString()} views. Change: ${p30v ? Math.round((r30v - p30v) / p30v * 100) : 0}%.\n`);
+    parts.push("Last 30 days (newest last):");
     parts.push(recent30.map((d) => `  ${d.date}: views ${d.views} | likes ${d.likes} | comments ${d.comments} | shares ${d.shares} | profile views ${d.profileViews}`).join("\n"));
     parts.push("");
   }
@@ -86,27 +86,28 @@ export function buildInsightsContext(snapshots: {
   // ── New vs returning viewers (last 30 days for trend detection) ──────────
   const vdays = snapshots.viewers?.days || [];
   if (vdays.length) {
-    const recent = vdays.slice(0, 30);
+    const recent = vdays.slice(-30);
     const avgNewPct = recent.length ? Math.round(recent.reduce((s, d) => s + Number(d.newPct || 0), 0) / recent.length) : 0;
     parts.push("## VIEWER COMPOSITION (last 30 days)\n");
     parts.push(`Average new-viewer %: ${avgNewPct}% (high = FYP serving you to fresh audiences; low = mostly existing fans).`);
-    parts.push("Daily breakdown:");
-    parts.push(recent.slice(0, 14).map((d) => `  ${d.date}: total ${d.total} | new ${d.new} (${d.newPct}%) | returning ${d.returning}`).join("\n"));
+    parts.push("Daily breakdown (chronological):");
+    parts.push(recent.slice(-14).map((d) => `  ${d.date}: total ${d.total} | new ${d.new} (${d.newPct}%) | returning ${d.returning}`).join("\n"));
     parts.push("");
   }
 
   // ── Follower history (key milestones + recent trend) ─────────────────────
+  // hist is OLDEST-FIRST: hist[0] = a year ago, hist[length-1] = today
   const hist = snapshots.history?.days || [];
   if (hist.length) {
-    const first = hist[hist.length - 1], last = hist[0];
-    const recent30 = hist.slice(0, 30);
-    const prior30 = hist.slice(30, 60);
+    const oldest = hist[0], newest = hist[hist.length - 1];
+    const recent30 = hist.slice(-30);
+    const prior30 = hist.slice(-60, -30);
     const gain30 = recent30.reduce((s, d) => s + Number(d.delta || 0), 0);
     const gain60 = prior30.reduce((s, d) => s + Number(d.delta || 0), 0);
     const bestDay = hist.reduce((m, d) => (Number(d.delta) || 0) > (Number(m?.delta) || 0) ? d : m, hist[0]);
     parts.push("## FOLLOWER GROWTH\n");
-    parts.push(`${hist.length} days of history. Started ${first?.count} → currently ${last?.count} (+${(Number(last?.count) - Number(first?.count)).toLocaleString()}).`);
-    parts.push(`Last 30d gain: +${gain30}. Prior 30d gain: +${gain60}. Best single day: +${bestDay?.delta} on ${bestDay?.date}.`);
+    parts.push(`${hist.length} days of history. Started at ${oldest?.count} (${oldest?.date}) → currently ${newest?.count} (${newest?.date}). Net change: ${((Number(newest?.count) || 0) - (Number(oldest?.count) || 0) >= 0 ? "+" : "")}${((Number(newest?.count) || 0) - (Number(oldest?.count) || 0)).toLocaleString()} followers over the year.`);
+    parts.push(`Last 30d gain: +${gain30}. Prior 30d gain (60-30 days ago): +${gain60}. Best single day: +${bestDay?.delta} on ${bestDay?.date}.`);
     parts.push("");
   }
 
