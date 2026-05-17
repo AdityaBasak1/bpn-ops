@@ -831,18 +831,18 @@ function svgEl(tag,attrs){
   return el;
 }
 // Sparkline-style line chart. data = number[]
-function lineChart(data,{w=320,h=80,color="#8b5cf6",fill=true,showLast=true}={}){
+function lineChart(data,{w=320,ht=80,color="#8b5cf6",fill=true,showLast=true}={}){
   const wrap=h("div",{style:{position:"relative",width:"100%"}});
   if(!data||!data.length){wrap.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text4)",padding:"20px",textAlign:"center"}},"no data"));return wrap}
   const max=Math.max(...data,1);
   const min=Math.min(...data,0);
   const range=max-min||1;
   const xs=data.map((_,i)=>(i/(data.length-1||1))*w);
-  const ys=data.map(v=>h-((v-min)/range)*(h-4)-2);
+  const ys=data.map(v=>ht-((v-min)/range)*(ht-4)-2);
   const points=xs.map((x,i)=>x.toFixed(1)+","+ys[i].toFixed(1)).join(" ");
-  const svg=svgEl("svg",{viewBox:"0 0 "+w+" "+h,width:"100%",height:String(h),preserveAspectRatio:"none",style:"display:block"});
+  const svg=svgEl("svg",{viewBox:"0 0 "+w+" "+ht,width:"100%",height:String(ht),preserveAspectRatio:"none",style:"display:block"});
   if(fill){
-    svg.appendChild(svgEl("polygon",{points:"0,"+h+" "+points+" "+w+","+h,fill:color,"fill-opacity":"0.12"}));
+    svg.appendChild(svgEl("polygon",{points:"0,"+ht+" "+points+" "+w+","+ht,fill:color,"fill-opacity":"0.12"}));
   }
   svg.appendChild(svgEl("polyline",{points,fill:"none",stroke:color,"stroke-width":"2","stroke-linejoin":"round","stroke-linecap":"round"}));
   if(showLast&&data.length){
@@ -869,12 +869,12 @@ function hourHeatmap(hourly){
   return container;
 }
 // Simple bar chart for daily deltas. data = number[] (can be negative)
-function deltaBars(data,{w=320,h=50,posColor="#22c55e",negColor="#ef4444"}={}){
+function deltaBars(data,{w=320,ht=50,posColor="#22c55e",negColor="#ef4444"}={}){
   if(!data||!data.length)return h("div");
   const max=Math.max(...data.map(Math.abs),1);
-  const mid=h/2;
+  const mid=ht/2;
   const bw=w/data.length;
-  const svg=svgEl("svg",{viewBox:"0 0 "+w+" "+h,width:"100%",height:String(h),preserveAspectRatio:"none",style:"display:block"});
+  const svg=svgEl("svg",{viewBox:"0 0 "+w+" "+ht,width:"100%",height:String(ht),preserveAspectRatio:"none",style:"display:block"});
   data.forEach((v,i)=>{
     const x=i*bw;
     const bh=Math.abs(v)/max*(mid-1);
@@ -1262,7 +1262,7 @@ function render(){
       // Line chart
       const chartWrap=h("div",{style:{padding:"10px 12px 4px",background:"var(--s1)",border:"1px solid var(--s4)",borderRadius:"8px",marginBottom:"12px"}});
       chartWrap.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"6px"}},"Daily views (last 30 days)"));
-      chartWrap.appendChild(lineChart(reversedRecent.map(d=>d.views),{w:320,h:60,color:"#8b5cf6"}));
+      chartWrap.appendChild(lineChart(reversedRecent.map(d=>d.views),{w:320,ht:60,color:"#8b5cf6"}));
       main.appendChild(chartWrap);
       // Best-hour-to-post recommendation
       if(st.studio?.activity?.hourly){
@@ -1872,11 +1872,11 @@ function render(){
       followerBox.appendChild(numRow);
       // Line: count over time (oldest → newest)
       const counts=[...days].reverse().map(d=>d.count);
-      followerBox.appendChild(lineChart(counts,{w:320,h:60,color:"#3b82f6"}));
+      followerBox.appendChild(lineChart(counts,{w:320,ht:60,color:"#3b82f6"}));
       // Bars: daily delta
       const deltas=[...days].reverse().map(d=>d.delta||0);
       followerBox.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text4)",marginTop:"8px",marginBottom:"2px"}},"Daily change"));
-      followerBox.appendChild(deltaBars(deltas,{w:320,h:40}));
+      followerBox.appendChild(deltaBars(deltas,{w:320,ht:40}));
       main.appendChild(followerBox);
     }
 
