@@ -107,8 +107,11 @@ def main():
 
     # ── 6. Insecure HTTP URLs ────────────────────────────────────────────────
     # Allow https://, skip data: and relative URLs; flag bare http://
+    # Exclude well-known XML namespace identifiers (w3.org) — these aren't fetched.
     http_hits = re.findall(r'["\s](http://[^\s"\'<>]+)', src)
     for h in http_hits:
+        if h.startswith("http://www.w3.org/"):
+            continue  # XML namespace identifier, not a network URL
         errors.append(f"[HOST] Insecure http:// URL (mixed content on HTTPS): {h.strip()}")
 
     # ── 7. Localhost references ───────────────────────────────────────────────

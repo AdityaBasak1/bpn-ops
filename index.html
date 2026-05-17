@@ -101,7 +101,8 @@ let st={
   user:null, teamId:null, teamName:null,
   tab:"today", cfg:getCfg(),
   signals:[], posts:[], promos:[],
-  studio:{audience:null,followers:null}, // latest snapshots from TikTok Studio CSV
+  // Latest TikTok Studio CSV snapshots, keyed by kind
+  studio:{contentTop:null,overview:null,viewers:null,history:null,activity:null,gender:null,countries:null},
   sf:{keyword:"",source:SOURCES[0],velocity:5,notes:"",category:""},
   tsf:{name:"",url:"",category:"",price:25,note:""},
   pf:{platform:PLATS[0],caption:""},
@@ -148,13 +149,12 @@ async function loadAll(){
     if(maxTs)localStorage.setItem("bpn-ls",String(maxTs));
     st.lastScan=maxTs||st.lastScan;
   }
-  // Latest TikTok Studio snapshot for each kind
-  const studio={audience:null,followers:null};
+  // Latest TikTok Studio snapshot per kind
+  const STUDIO_KINDS={content_top:"contentTop",daily_overview:"overview",daily_viewers:"viewers",follower_history:"history",follower_activity:"activity",follower_gender:"gender",follower_countries:"countries"};
+  const studio={contentTop:null,overview:null,viewers:null,history:null,activity:null,gender:null,countries:null};
   (studioFromDB||[]).forEach(r=>{
-    const k=r.kind;
-    if(k==="audience"||k==="followers"){
-      if(!studio[k]||(r.ts||0)>(studio[k].ts||0))studio[k]=r;
-    }
+    const slot=STUDIO_KINDS[r.kind];
+    if(slot&&(!studio[slot]||(r.ts||0)>(studio[slot].ts||0)))studio[slot]=r;
   });
   S({signals,posts,promos,autoSignals,studio,screen:"roar"});
 }
@@ -616,129 +616,240 @@ async function importTikTokCSVText(text){
   }catch(e){alert("CSV import error: "+e.message);console.error(e)}
 }
 
-// ─── TikTok Studio CSV Import (3 kinds: content, audience, followers) ───
-async function importStudioCSV(file){
-  try{const text=await file.text();return await importStudioCSVText(text,file.name||"")}
-  catch(e){alert("CSV error: "+e.message);console.error(e)}
-}
-async function importStudioCSVText(text,filename){
-  const {headers,rows}=parseCSV(text);
-  if(!rows.length){alert("CSV looks empty");return}
-  // Detect kind from headers; allow filename override
-  let kind=detectStudioCSV(headers);
-  const fn=(filename||"").toLowerCase();
-  if(fn.includes("follower"))kind="followers";
-  else if(fn.includes("viewer")||fn.includes("audience"))kind="audience";
-  else if(fn.includes("content")||fn.includes("post")||fn.includes("video"))kind="content";
-  if(kind==="unknown"){
-    // Last resort: prompt user
-    const pick=prompt("Could not auto-detect CSV kind. Type one of: content, audience, followers");
-    if(!pick)return;
-    kind=pick.trim().toLowerCase();
-  }
-  if(kind==="content")return await importContentCSV(rows);
-  if(kind==="audience"||kind==="followers")return await importAudienceCSV(rows,kind);
-  alert("Unknown CSV kind: "+kind);
-}
+// ─── TikTok Studio CSV Import (7 kinds: detected by filename + headers) ───
 
-async function importContentCSV(rows){
-  const posts=[...st.posts];
-  let matched=0,unmatched=0;
-  for(const row of rows){
-    const videoUrl=findCol(row,["video link","video url","share url","content url","video"]).trim();
-    const videoId=findCol(row,["video id","content id"]).trim()||extractVideoId(videoUrl);
-    if(!videoId&&!videoUrl)continue;
-    const idx=posts.findIndex(p=>{
-      if(videoId&&(p.videoId===videoId))return true;
-      if(p.videoUrl&&videoUrl&&p.videoUrl.includes(videoId||""))return true;
-      if(p.videoUrl&&p.videoUrl===videoUrl)return true;
-      return false;
-    });
-    if(idx<0){unmatched++;continue}
-    const updates={
-      watchTimeSec:  parseDuration(findCol(row,["total play time","total watch time","watch time","total watch"])),
-      avgWatchSec:   parseDuration(findCol(row,["average watch time","avg watch time","avg. watch","avg watch"])),
-      completionPct: parsePct(findCol(row,["average percentage watched","completion rate","avg. % watched","watched full","full video watch rate"])),
-      nonFollowerPct:parsePct(findCol(row,["reached non-followers","non-follower","new viewer","non followers"])),
-      fypPct:        parsePct(findCol(row,["for you","fyp","source: for you"])),
-      profilePct:    parsePct(findCol(row,["personal profile","source: personal profile","profile views"])),
-      followingPct:  parsePct(findCol(row,["following","source: following","from following"])),
-      searchPct:     parsePct(findCol(row,["search","source: search","from search"])),
-      csv_synced_at: new Date().toISOString(),
-    };
-    posts[idx]={...posts[idx],...updates};
-    await dbUpdate("post",posts[idx]);
-    matched++;
-  }
-  localStorage.setItem("bpn-studio-content-sync",String(Date.now()));
-  S({posts});
-  alert(`Content CSV imported: ${matched} matched, ${unmatched} unmatched (no synced video for those rows)`);
-}
-
-// Parse demographic / activity CSV. TikTok exports these as wide or long format.
-// We collect: gender {male,female,other}, age {bucket:%}, country [{name,pct}], activity {hour:%}
-async function importAudienceCSV(rows,kind){
-  const out={gender:{},age:{},country:[],activity:{},rawCount:rows.length};
-  for(const row of rows){
-    // Try long format: each row has a dimension + a value
-    const dim=findCol(row,["category","dimension","metric","type","label","group","name"])||"";
-    const lbl=findCol(row,["value","name","label","range","group","country","region","territory","age","gender","hour","day"])||"";
-    const pct=parsePct(findCol(row,["percentage","percent","%","share","ratio","value"]));
-    const rawCount=parseNum(findCol(row,["count","total","followers","viewers","reach"]));
-    const k=(dim+" "+lbl).toLowerCase();
-    // Gender
-    if(/female|woman/.test(k))out.gender.female=pct||out.gender.female;
-    else if(/^male|^man|\bmale\b|\bmen\b/.test(k))out.gender.male=pct||out.gender.male;
-    else if(/other|non.binary|prefer/.test(k))out.gender.other=pct||out.gender.other;
-    // Age buckets
-    const age=k.match(/(\d{2})\s*-\s*(\d{2})|55\+|65\+|18\+|13\+/);
-    if(age)out.age[age[0]]=pct||out.age[age[0]];
-    // Country / Region
-    if(/country|territory|region|location/.test(dim.toLowerCase())&&lbl){
-      out.country.push({name:lbl,pct:pct||0,count:rawCount||0});
-    }
-    // Hourly activity
-    const hour=k.match(/\b(\d{1,2})\s*:\s*00|\bhour\s*(\d{1,2})|\b(\d{1,2})\s*[ap]m/i);
-    if(hour){
-      const h=parseInt(hour[1]||hour[2]||hour[3],10);
-      if(!isNaN(h)&&h>=0&&h<=23)out.activity["h"+h]=pct||out.activity["h"+h];
-    }
-  }
-  // Also try wide format: each ROW is a category header with VALUE columns
-  // (Handled by the loop above through findCol — fallback below)
-  if(rows.length>0&&Object.keys(out.gender).length===0){
-    // Wide: look for percent-like columns named after gender/age
-    for(const row of rows){
-      for(const [k,v] of Object.entries(row)){
-        const lk=k.toLowerCase();
-        const pv=parsePct(v);
-        if(/female|woman/.test(lk))out.gender.female=pv||out.gender.female;
-        else if(/^male|\bmen\b|\bmale\b/.test(lk))out.gender.male=pv||out.gender.male;
-      }
-    }
-  }
-  // Persist as a fresh snapshot row, replacing previous of same kind
-  const itemId="studio-"+kind;
-  const snapshot={
-    id:itemId,
-    kind,           // "audience" or "followers"
-    snapshotDate:new Date().toISOString(),
-    gender:out.gender,
-    age:out.age,
-    country:out.country.slice(0,15),
-    activity:out.activity,
-    ts:Date.now(),
-  };
-  // Upsert (delete then insert by item_id)
+// Save a studio snapshot row (upsert by fixed item_id)
+async function upsertStudioSnapshot(kind,itemId,payload){
   try{await sb.from("bpn").delete().eq("team_id",st.teamId).eq("type","studio_snapshot").eq("item_id",itemId)}catch{}
-  await dbInsert("studio_snapshot",snapshot);
-  const studio={...st.studio,[kind]:snapshot};
-  const nowStr=String(Date.now());
-  if(kind==="audience")localStorage.setItem("bpn-studio-audience-sync",nowStr);
-  else if(kind==="followers")localStorage.setItem("bpn-studio-followers-sync",nowStr);
+  const row={id:itemId,kind,ts:Date.now(),...payload};
+  await dbInsert("studio_snapshot",row);
+  return row;
+}
+
+// Multi-file drop: process every file sequentially, return summary
+async function importStudioFiles(files){
+  const results=[];
+  for(const f of files){
+    try{
+      const text=await f.text();
+      const out=await importStudioCSV(text,f.name||"");
+      results.push((out?"✓ ":"✗ ")+(f.name||"file")+(out?" — "+out:""));
+    }catch(e){results.push("✗ "+f.name+": "+e.message)}
+  }
+  alert("TikTok Studio import:\n"+results.join("\n"));
+}
+
+// Single CSV: dispatch by filename → fallback to headers
+async function importStudioCSV(text,filename){
+  const {headers,rows}=parseCSV(text);
+  if(!rows.length)throw new Error("empty");
+  const fn=(filename||"").toLowerCase();
+  if(fn.includes("followeractivity"))      return await importFollowerActivity(rows);
+  if(fn.includes("followergender"))        return await importFollowerGender(rows);
+  if(fn.includes("followerterritor")||fn.includes("followertop")) return await importFollowerCountries(rows);
+  if(fn.includes("followerhistory"))       return await importFollowerHistory(rows);
+  if(fn.includes("viewer"))                return await importViewers(rows);
+  if(fn.includes("overview"))              return await importOverview(rows);
+  if(fn.includes("content"))               return await importContentTop(rows);
+  // Header fallback
+  const h=headers.join("|").toLowerCase();
+  if(/active followers/.test(h))           return await importFollowerActivity(rows);
+  if(/gender/.test(h))                     return await importFollowerGender(rows);
+  if(/top territor/.test(h))               return await importFollowerCountries(rows);
+  if(/difference in followers/.test(h))    return await importFollowerHistory(rows);
+  if(/new viewers/.test(h))                return await importViewers(rows);
+  if(/profile views/.test(h))              return await importOverview(rows);
+  if(/video link|video title/.test(h))     return await importContentTop(rows);
+  throw new Error("unknown CSV format");
+}
+
+// 1. Content.csv — top performing videos
+async function importContentTop(rows){
+  const videos=rows.map(r=>{
+    const title=findCol(r,["video title","title","caption"]).trim();
+    const url=findCol(r,["video link","video url","share url"]).trim();
+    const postDate=findCol(r,["post time","posted on","date posted"]).trim();
+    const views=parseNum(findCol(r,["total views","views"]));
+    const likes=parseNum(findCol(r,["total likes","likes"]));
+    const comments=parseNum(findCol(r,["total comments","comments"]));
+    const shares=parseNum(findCol(r,["total shares","shares"]));
+    const engagementPct=views>0?Math.round(((likes+comments+shares)/views)*10000)/100:0;
+    return{id:extractVideoId(url)||uid(),title,url,postDate,views,likes,comments,shares,engagementPct};
+  }).filter(v=>v.title&&v.views>0);
+  videos.sort((a,b)=>b.views-a.views);
+  await upsertStudioSnapshot("content_top","studio-content-top",{videos});
+  const studio={...st.studio,contentTop:{videos,ts:Date.now()}};
+  localStorage.setItem("bpn-studio-content-sync",String(Date.now()));
   S({studio});
-  const top=out.country.slice(0,3).map(c=>c.name+" "+c.pct.toFixed(0)+"%").join(", ");
-  alert(`${kind==="followers"?"Follower":"Audience"} CSV imported.\nGender: ${JSON.stringify(out.gender)}\nTop countries: ${top||"none parsed"}`);
+  return `${videos.length} videos`;
+}
+
+// 2. Overview.csv — daily account-wide metrics for ~365 days
+async function importOverview(rows){
+  const days=rows.map(r=>({
+    date:findCol(r,["date","day"]).trim(),
+    views:parseNum(findCol(r,["video views","views"])),
+    profileViews:parseNum(findCol(r,["profile views","profile"])),
+    likes:parseNum(findCol(r,["likes"])),
+    comments:parseNum(findCol(r,["comments"])),
+    shares:parseNum(findCol(r,["shares"])),
+  })).filter(d=>d.date);
+  await upsertStudioSnapshot("daily_overview","studio-overview",{days});
+  const studio={...st.studio,overview:{days,ts:Date.now()}};
+  localStorage.setItem("bpn-studio-overview-sync",String(Date.now()));
+  S({studio});
+  const totalViews=days.reduce((s,d)=>s+d.views,0);
+  return `${days.length} days, ${totalViews.toLocaleString()} total views`;
+}
+
+// 3. Viewers.csv — daily new vs returning split
+async function importViewers(rows){
+  const days=rows.map(r=>{
+    const total=parseNum(findCol(r,["total viewers","total"]));
+    const nv=parseNum(findCol(r,["new viewers","new"]));
+    const ret=parseNum(findCol(r,["returning viewers","returning"]));
+    return{date:findCol(r,["date"]).trim(),total,new:nv,returning:ret,newPct:total>0?Math.round((nv/total)*100):0};
+  }).filter(d=>d.date&&d.total>0);
+  await upsertStudioSnapshot("daily_viewers","studio-viewers",{days});
+  const studio={...st.studio,viewers:{days,ts:Date.now()}};
+  localStorage.setItem("bpn-studio-viewers-sync",String(Date.now()));
+  S({studio});
+  return `${days.length} days`;
+}
+
+// 4. FollowerHistory.csv — daily follower count + delta
+async function importFollowerHistory(rows){
+  const days=rows.map(r=>({
+    date:findCol(r,["date"]).trim(),
+    count:parseNum(findCol(r,["followers","total followers"])),
+    delta:parseNum(findCol(r,["difference","delta","change"])),
+  })).filter(d=>d.date&&d.count>0);
+  await upsertStudioSnapshot("follower_history","studio-followers-history",{days});
+  const studio={...st.studio,history:{days,ts:Date.now()}};
+  localStorage.setItem("bpn-studio-history-sync",String(Date.now()));
+  S({studio});
+  const first=days[days.length-1],last=days[0];
+  return first&&last?`${days.length} days · ${first.count.toLocaleString()} → ${last.count.toLocaleString()} (+${(last.count-first.count).toLocaleString()})`:`${days.length} days`;
+}
+
+// 5. FollowerActivity.csv — hourly active followers, averaged over the recent days available
+async function importFollowerActivity(rows){
+  const buckets={}; // hour → [counts]
+  const dates=new Set();
+  for(const r of rows){
+    const date=findCol(r,["date"]).trim();
+    const hour=parseInt(findCol(r,["hour","time"]),10);
+    const active=parseNum(findCol(r,["active followers","active","followers"]));
+    if(isNaN(hour)||active<=0)continue;
+    if(!buckets[hour])buckets[hour]=[];
+    buckets[hour].push(active);
+    dates.add(date);
+  }
+  const hourly={};
+  for(let h=0;h<24;h++){
+    const arr=buckets[h]||[];
+    hourly["h"+h]=arr.length?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length):0;
+  }
+  await upsertStudioSnapshot("follower_activity","studio-followers-activity",{hourly,dailyDates:[...dates]});
+  const studio={...st.studio,activity:{hourly,dailyDates:[...dates],ts:Date.now()}};
+  localStorage.setItem("bpn-studio-activity-sync",String(Date.now()));
+  S({studio});
+  // Find peak hour
+  const peak=Object.entries(hourly).sort((a,b)=>b[1]-a[1])[0];
+  return peak?`peak ${peak[0].slice(1)}:00 (${peak[1].toLocaleString()} active)`:"parsed";
+}
+
+// 6. FollowerGender.csv — simple Gender,Distribution rows
+async function importFollowerGender(rows){
+  const gender={male:0,female:0,other:0};
+  for(const r of rows){
+    const g=findCol(r,["gender"]).toLowerCase().trim();
+    const pct=parsePct(findCol(r,["distribution","percentage","percent","%","share","value"]));
+    if(/female|woman/.test(g))gender.female=pct;
+    else if(/^male|^man/.test(g))gender.male=pct;
+    else if(/other/.test(g))gender.other=pct;
+  }
+  await upsertStudioSnapshot("follower_gender","studio-followers-gender",{gender});
+  const studio={...st.studio,gender:{gender,ts:Date.now()}};
+  localStorage.setItem("bpn-studio-gender-sync",String(Date.now()));
+  S({studio});
+  return `${gender.male}% / ${gender.female}% / ${gender.other}%`;
+}
+
+// 7. FollowerTopTerritories.csv — Top territories,Distribution
+async function importFollowerCountries(rows){
+  const countries=rows.map(r=>({
+    code:findCol(r,["top territories","territory","country","region"]).trim(),
+    pct:parsePct(findCol(r,["distribution","percentage","percent","%","share","value"])),
+  })).filter(c=>c.code&&c.pct>0).sort((a,b)=>b.pct-a.pct);
+  await upsertStudioSnapshot("follower_countries","studio-followers-countries",{countries});
+  const studio={...st.studio,countries:{countries,ts:Date.now()}};
+  localStorage.setItem("bpn-studio-countries-sync",String(Date.now()));
+  S({studio});
+  return `top ${countries[0]?.code} ${countries[0]?.pct}%`;
+}
+
+// ─── Chart helpers (SVG + HTML) ───
+const SVG_NS="http://www.w3.org/2000/svg";
+function svgEl(tag,attrs){
+  const el=document.createElementNS(SVG_NS,tag);
+  if(attrs)for(const[k,v] of Object.entries(attrs))el.setAttribute(k,v);
+  return el;
+}
+// Sparkline-style line chart. data = number[]
+function lineChart(data,{w=320,h=80,color="#8b5cf6",fill=true,showLast=true}={}){
+  const wrap=h("div",{style:{position:"relative",width:"100%"}});
+  if(!data||!data.length){wrap.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text4)",padding:"20px",textAlign:"center"}},"no data"));return wrap}
+  const max=Math.max(...data,1);
+  const min=Math.min(...data,0);
+  const range=max-min||1;
+  const xs=data.map((_,i)=>(i/(data.length-1||1))*w);
+  const ys=data.map(v=>h-((v-min)/range)*(h-4)-2);
+  const points=xs.map((x,i)=>x.toFixed(1)+","+ys[i].toFixed(1)).join(" ");
+  const svg=svgEl("svg",{viewBox:"0 0 "+w+" "+h,width:"100%",height:String(h),preserveAspectRatio:"none",style:"display:block"});
+  if(fill){
+    svg.appendChild(svgEl("polygon",{points:"0,"+h+" "+points+" "+w+","+h,fill:color,"fill-opacity":"0.12"}));
+  }
+  svg.appendChild(svgEl("polyline",{points,fill:"none",stroke:color,"stroke-width":"2","stroke-linejoin":"round","stroke-linecap":"round"}));
+  if(showLast&&data.length){
+    const lastX=xs[xs.length-1],lastY=ys[ys.length-1];
+    svg.appendChild(svgEl("circle",{cx:lastX,cy:lastY,r:"3",fill:color}));
+  }
+  wrap.appendChild(svg);
+  return wrap;
+}
+// 24-bucket hourly heatmap. hourly = {h0..h23: count}, peak shown in caption
+function hourHeatmap(hourly){
+  const arr=Array.from({length:24},(_,i)=>hourly["h"+i]||0);
+  const max=Math.max(...arr,1);
+  const wrap=h("div",{style:{display:"grid",gridTemplateColumns:"repeat(24,1fr)",gap:"2px"}});
+  arr.forEach((v,i)=>{
+    const op=max>0?(v/max):0;
+    const cell=h("div",{title:i+":00 — "+v.toLocaleString()+" active",style:{height:"22px",borderRadius:"2px",background:"rgba(139,92,246,"+(0.1+op*0.85)+")",position:"relative"}});
+    if(i%6===0){
+      cell.appendChild(h("div",{style:{position:"absolute",bottom:"-14px",left:"0",fontSize:"9px",color:"var(--text4)",whiteSpace:"nowrap"}},i+":00"));
+    }
+    wrap.appendChild(cell);
+  });
+  const container=h("div",{style:{paddingBottom:"16px"}},wrap);
+  return container;
+}
+// Simple bar chart for daily deltas. data = number[] (can be negative)
+function deltaBars(data,{w=320,h=50,posColor="#22c55e",negColor="#ef4444"}={}){
+  if(!data||!data.length)return h("div");
+  const max=Math.max(...data.map(Math.abs),1);
+  const mid=h/2;
+  const bw=w/data.length;
+  const svg=svgEl("svg",{viewBox:"0 0 "+w+" "+h,width:"100%",height:String(h),preserveAspectRatio:"none",style:"display:block"});
+  data.forEach((v,i)=>{
+    const x=i*bw;
+    const bh=Math.abs(v)/max*(mid-1);
+    const y=v>=0?mid-bh:mid;
+    svg.appendChild(svgEl("rect",{x:x.toFixed(1),y:y.toFixed(1),width:Math.max(bw-0.5,0.5).toFixed(1),height:Math.max(bh,0.5).toFixed(1),fill:v>=0?posColor:negColor}));
+  });
+  // baseline
+  svg.appendChild(svgEl("line",{x1:"0",x2:String(w),y1:mid.toFixed(1),y2:mid.toFixed(1),stroke:"var(--border)","stroke-width":"0.5"}));
+  return h("div",{style:{width:"100%"}},svg);
 }
 
 // ─── DOM helpers ───
@@ -1010,6 +1121,37 @@ function render(){
   if(tab==="today"){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Today"));
     main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"12px",margin:"0 0 12px"}},"What needs attention right now."));
+
+    // ─── TikTok Studio: 30-day trend + headline metrics ───
+    if(st.studio?.overview?.days?.length){
+      const allDays=st.studio.overview.days;
+      const recent30=allDays.slice(0,30);
+      const reversedRecent=[...recent30].reverse(); // oldest → newest for line chart
+      const total30Views=recent30.reduce((s,d)=>s+d.views,0);
+      const total30Likes=recent30.reduce((s,d)=>s+d.likes,0);
+      const histDays=st.studio.history?.days||[];
+      const followerGain30=histDays.slice(0,30).reduce((s,d)=>s+(d.delta||0),0);
+      // Big numbers row
+      const bigRow=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px",marginBottom:"8px"}});
+      bigRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#22c55e"}},(total30Views/1000).toFixed(1)+"k"),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},"30d views")));
+      bigRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#ec4899"}},(total30Likes/1000).toFixed(1)+"k"),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},"30d likes")));
+      bigRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#3b82f6"}},(followerGain30>=0?"+":"")+followerGain30.toLocaleString()),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},"30d followers")));
+      main.appendChild(bigRow);
+      // Line chart
+      const chartWrap=h("div",{style:{padding:"10px 12px 4px",background:"var(--s1)",border:"1px solid var(--s4)",borderRadius:"8px",marginBottom:"12px"}});
+      chartWrap.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"6px"}},"Daily views (last 30 days)"));
+      chartWrap.appendChild(lineChart(reversedRecent.map(d=>d.views),{w:320,h:60,color:"#8b5cf6"}));
+      main.appendChild(chartWrap);
+      // Best-hour-to-post recommendation
+      if(st.studio?.activity?.hourly){
+        const arr=Array.from({length:24},(_,i)=>st.studio.activity.hourly["h"+i]||0);
+        const peak=arr.indexOf(Math.max(...arr));
+        main.appendChild(h("div",{style:{padding:"8px 10px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.25)",borderRadius:"6px",fontSize:"12px",color:"var(--text2)",marginBottom:"12px",lineHeight:"1.5"}},
+          "💡 Best post time: ",h("strong",{style:{color:"#22c55e"}},peak+":00 BST")," — that's when your followers peak online (",arr[peak].toLocaleString()," active)."
+        ));
+      }
+    }
+
     const actions=[];
     // 1. Hot auto-signals not yet promoted
     const promotedSignalIds=new Set((st.promos||[]).filter(p=>p.signalId).map(p=>p.signalId));
@@ -1033,16 +1175,25 @@ function render(){
       const days=Math.round((Date.now()-lastTT)/(24*3600*1000));
       actions.push({sev:"warn",icon:"↓",title:"TikTok affiliate CSV stale ("+days+" days)",detail:"Export latest from TikTok Affiliate Center → Reports.",cta:"Open Promos",act:()=>S({tab:"promos"})});
     }
-    // 5b. TikTok Studio CSV — prompt if never imported, warn if stale
-    const lastSC=+(localStorage.getItem("bpn-studio-content-sync")||0);
-    const lastSA=+(localStorage.getItem("bpn-studio-audience-sync")||0);
-    const lastSF=+(localStorage.getItem("bpn-studio-followers-sync")||0);
-    const newestStudio=Math.max(lastSC,lastSA,lastSF);
-    if(newestStudio===0&&st.posts.length>=3){
-      actions.push({sev:"info",icon:"S",title:"Import TikTok Studio CSVs",detail:"Unlock watch time + completion rate + audience demographics. Export from studio.tiktok.com → Analytics.",cta:"Open Content",act:()=>S({tab:"content"})});
+    // 5b. TikTok Studio CSVs — check which kinds are loaded
+    const studioTimes=[
+      +(localStorage.getItem("bpn-studio-content-sync")||0),
+      +(localStorage.getItem("bpn-studio-overview-sync")||0),
+      +(localStorage.getItem("bpn-studio-viewers-sync")||0),
+      +(localStorage.getItem("bpn-studio-history-sync")||0),
+      +(localStorage.getItem("bpn-studio-activity-sync")||0),
+      +(localStorage.getItem("bpn-studio-gender-sync")||0),
+      +(localStorage.getItem("bpn-studio-countries-sync")||0),
+    ];
+    const loadedCount=studioTimes.filter(t=>t>0).length;
+    const newestStudio=Math.max(...studioTimes,0);
+    if(loadedCount===0){
+      actions.push({sev:"info",icon:"S",title:"Import TikTok Studio CSVs",detail:"Export Content/Overview/Viewers + Followers folder from studio.tiktok.com → Analytics, then drop all 7 CSVs into the Content tab.",cta:"Open Content",act:()=>S({tab:"content"})});
+    } else if(loadedCount<7){
+      actions.push({sev:"info",icon:"S",title:"Studio CSVs partial ("+loadedCount+"/7 loaded)",detail:"Missing some Studio data — drop the remaining CSVs into the Content tab.",cta:"Open Content",act:()=>S({tab:"content"})});
     } else if(newestStudio>0&&(Date.now()-newestStudio)>7*24*3600*1000){
       const days=Math.round((Date.now()-newestStudio)/(24*3600*1000));
-      actions.push({sev:"info",icon:"S",title:"Studio CSVs stale ("+days+"d)",detail:"Refresh content/audience/follower CSVs from TikTok Studio.",cta:"Open Content",act:()=>S({tab:"content"})});
+      actions.push({sev:"info",icon:"S",title:"Studio CSVs stale ("+days+"d)",detail:"Refresh all 7 CSVs from TikTok Studio for fresh insights.",cta:"Open Content",act:()=>S({tab:"content"})});
     }
     // 6. Scan stale
     if(st.lastScan&&(Date.now()-st.lastScan)>3600*1000){
@@ -1442,70 +1593,100 @@ function render(){
       main.appendChild(syncRow);
     }
 
-    // ─── TikTok Studio CSV Drop Zone (content / audience / followers) ───
+    // ─── TikTok Studio CSV Drop Zone (multi-file, 7 kinds) ───
     const studioDrop=h("label",{style:{display:"block",padding:"14px",background:"rgba(139,92,246,.06)",border:"2px dashed rgba(139,92,246,.4)",borderRadius:"8px",textAlign:"center",cursor:"pointer",marginBottom:"6px"}});
-    const studioInp=h("input",{type:"file",accept:".csv,text/csv",style:{display:"none"},onChange:e=>{const f=e.target.files[0];if(f)importStudioCSV(f);e.target.value=""}});
+    const studioInp=h("input",{type:"file",accept:".csv,text/csv",multiple:true,style:{display:"none"},onChange:e=>{const fs=Array.from(e.target.files||[]);if(fs.length)importStudioFiles(fs);e.target.value=""}});
+    studioInp.setAttribute("multiple","");
     studioDrop.appendChild(studioInp);
-    const lastC=+(localStorage.getItem("bpn-studio-content-sync")||0);
-    const lastA=+(localStorage.getItem("bpn-studio-audience-sync")||0);
-    const lastF=+(localStorage.getItem("bpn-studio-followers-sync")||0);
-    const ageTxt=t=>!t?"never":Math.round((Date.now()-t)/86400000)+"d ago";
-    studioDrop.appendChild(h("div",{style:{fontSize:"14px",fontWeight:700,color:"var(--accent-text)",marginBottom:"3px"}},"Drop TikTok Studio CSV here"));
+    const haveKinds=[];
+    if(st.studio?.contentTop)haveKinds.push("Content");
+    if(st.studio?.overview)haveKinds.push("Overview");
+    if(st.studio?.viewers)haveKinds.push("Viewers");
+    if(st.studio?.history)haveKinds.push("Followers");
+    if(st.studio?.activity)haveKinds.push("Activity");
+    if(st.studio?.gender)haveKinds.push("Gender");
+    if(st.studio?.countries)haveKinds.push("Regions");
+    studioDrop.appendChild(h("div",{style:{fontSize:"14px",fontWeight:700,color:"var(--accent-text)",marginBottom:"3px"}},"Drop TikTok Studio CSVs here"));
     studioDrop.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",lineHeight:"1.5"}},
-      "Content: "+ageTxt(lastC)+" · Audience: "+ageTxt(lastA)+" · Followers: "+ageTxt(lastF)
+      haveKinds.length?"Loaded: "+haveKinds.join(" · ")+" ("+haveKinds.length+"/7)":"Drop all 7 CSVs at once — auto-detects each"
     ));
     studioDrop.addEventListener("dragover",e=>{e.preventDefault();studioDrop.style.background="rgba(139,92,246,.14)"});
     studioDrop.addEventListener("dragleave",e=>{e.preventDefault();studioDrop.style.background="rgba(139,92,246,.06)"});
-    studioDrop.addEventListener("drop",e=>{e.preventDefault();studioDrop.style.background="rgba(139,92,246,.06)";const f=e.dataTransfer.files[0];if(f)importStudioCSV(f)});
+    studioDrop.addEventListener("drop",e=>{e.preventDefault();studioDrop.style.background="rgba(139,92,246,.06)";const fs=Array.from(e.dataTransfer.files||[]).filter(f=>/\.csv$/i.test(f.name));if(fs.length)importStudioFiles(fs)});
     main.appendChild(studioDrop);
-    main.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text4)",marginBottom:"12px",lineHeight:"1.5"}},"Export from studio.tiktok.com → Analytics → (Overview / Viewers / Followers) → Download CSV. Auto-detects which kind."));
+    main.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text4)",marginBottom:"12px",lineHeight:"1.5"}},"Export from studio.tiktok.com → Analytics. Drop Content.csv, Overview.csv, Viewers.csv + the 4 follower CSVs together."));
 
-    // ─── Audience + Follower demographics cards ───
-    const demoCard=(snap,title,color)=>{
-      const card=h("div",{style:{background:"var(--s1)",border:"1px solid var(--s4)",borderRadius:"8px",padding:"10px 12px",marginBottom:"10px"}});
-      card.appendChild(h("div",{style:{fontSize:"12px",color,fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"8px"}},title));
-      if(!snap){card.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text4)"}},"Drop the matching CSV above to populate."));return card}
-      const g=snap.gender||{};
-      if(g.male||g.female||g.other){
+    // ─── Top performing videos ───
+    if(st.studio?.contentTop?.videos?.length){
+      const vids=[...st.studio.contentTop.videos];
+      vids.sort((a,b)=>b.views-a.views);
+      main.appendChild(sec("Top Videos ("+vids.length+")",div=>{
+        // Format detector: split by "combined xi" pattern
+        const isComboXI=v=>/combined\s*xi/i.test(v.title);
+        const combo=vids.filter(isComboXI),other=vids.filter(v=>!isComboXI(v));
+        if(combo.length>0&&other.length>0){
+          const avgCombo=Math.round(combo.reduce((s,v)=>s+v.views,0)/combo.length);
+          const avgOther=Math.round(other.reduce((s,v)=>s+v.views,0)/other.length);
+          div.appendChild(h("div",{style:{padding:"8px 10px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.25)",borderRadius:"6px",marginBottom:"10px",fontSize:"12px",color:"var(--text2)",lineHeight:"1.5"}},
+            "🎯 Format insight: ",
+            h("strong",null,"Combined XI"),": "+combo.length+" videos, avg ",h("strong",{style:{color:"#22c55e"}},avgCombo.toLocaleString())," views · ",
+            "Other formats: "+other.length+" videos, avg "+avgOther.toLocaleString()+" views"
+          ));
+        }
+        vids.slice(0,10).forEach((v,i)=>{
+          const card=h("div",{style:{padding:"8px 10px",background:i===0?"rgba(34,197,94,.06)":"var(--s1)",borderLeft:"3px solid "+(i===0?"#22c55e":"var(--border)"),borderRadius:"5px",marginBottom:"5px",display:"flex",gap:"8px",alignItems:"flex-start"}});
+          card.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text4)",fontWeight:700,minWidth:"18px"}},"#"+(i+1)));
+          const body=h("div",{style:{flex:"1",minWidth:0}});
+          body.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text)",lineHeight:"1.4",fontWeight:600,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:"2",WebkitBoxOrient:"vertical"}},v.title.replace(/#\w+/g,"").trim()));
+          body.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginTop:"3px",display:"flex",gap:"8px",flexWrap:"wrap"}},
+            h("span",null,"👁 "+v.views.toLocaleString()),
+            h("span",null,"♥ "+v.likes.toLocaleString()),
+            h("span",{style:{color:v.engagementPct>=4?"#22c55e":v.engagementPct>=2?"#f59e0b":"var(--text4)",fontWeight:600}},v.engagementPct+"% eng"),
+            v.postDate?h("span",null,"📅 "+v.postDate):null
+          ));
+          card.appendChild(body);
+          if(v.url){
+            card.appendChild(h("a",{href:v.url,target:"_blank",rel:"noopener noreferrer",style:{fontSize:"11px",color:"var(--accent-text)",textDecoration:"none",flexShrink:0,padding:"2px 6px",background:"var(--s2)",borderRadius:"4px"}},"↗"));
+          }
+          div.appendChild(card);
+        });
+      }));
+    }
+
+    // ─── Follower-activity heatmap ───
+    if(st.studio?.activity?.hourly){
+      main.appendChild(sec("Follower Activity by Hour",div=>{
+        div.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"6px"}},"Avg active followers each hour (last "+(st.studio.activity.dailyDates?.length||7)+" days). Darker = more active."));
+        div.appendChild(hourHeatmap(st.studio.activity.hourly));
+        const arr=Array.from({length:24},(_,i)=>st.studio.activity.hourly["h"+i]||0);
+        const peak=arr.indexOf(Math.max(...arr));
+        const trough=arr.indexOf(Math.min(...arr.filter(v=>v>0)));
+        div.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text2)",marginTop:"6px",lineHeight:"1.5"}},
+          "🌟 Post at ",h("strong",{style:{color:"#22c55e"}},peak+":00")," for max reach (peak ~",arr[peak].toLocaleString()," fans online). Avoid ",h("strong",null,trough+":00")," (low ",arr[trough].toLocaleString(),")."
+        ));
+      }));
+    }
+
+    // ─── Demographic cards (gender + countries) ───
+    if(st.studio?.gender||st.studio?.countries){
+      const demo=h("div",{style:{background:"var(--s1)",border:"1px solid var(--s4)",borderRadius:"8px",padding:"10px 12px",marginBottom:"12px"}});
+      demo.appendChild(h("div",{style:{fontSize:"12px",color:"#22c55e",fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"8px"}},"⭐ Your Followers"));
+      const g=st.studio?.gender?.gender;
+      if(g&&(g.male||g.female||g.other)){
         const row=h("div",{style:{display:"flex",gap:"6px",marginBottom:"8px"}});
         if(g.male)row.appendChild(h("div",{style:{flex:"1",padding:"6px 8px",background:"rgba(59,130,246,.12)",borderRadius:"5px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#3b82f6"}},g.male.toFixed(0)+"%"),h("div",{style:{fontSize:"10px",color:"var(--text3)"}},"Male")));
         if(g.female)row.appendChild(h("div",{style:{flex:"1",padding:"6px 8px",background:"rgba(236,72,153,.12)",borderRadius:"5px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#ec4899"}},g.female.toFixed(0)+"%"),h("div",{style:{fontSize:"10px",color:"var(--text3)"}},"Female")));
         if(g.other)row.appendChild(h("div",{style:{flex:"1",padding:"6px 8px",background:"var(--s2)",borderRadius:"5px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"var(--text2)"}},g.other.toFixed(0)+"%"),h("div",{style:{fontSize:"10px",color:"var(--text3)"}},"Other")));
-        card.appendChild(row);
+        demo.appendChild(row);
       }
-      const ages=Object.entries(snap.age||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-      if(ages.length){
-        card.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"3px"}},"Age"));
-        const ar=h("div",{style:{display:"flex",gap:"4px",flexWrap:"wrap",marginBottom:"8px"}});
-        ages.forEach(([k,v])=>ar.appendChild(h("span",{style:{fontSize:"11px",padding:"2px 7px",background:"var(--s2)",borderRadius:"10px",color:"var(--text)"}},k+": "+v.toFixed(0)+"%")));
-        card.appendChild(ar);
-      }
-      const top=(snap.country||[]).slice(0,5);
+      const top=(st.studio?.countries?.countries||[]).slice(0,8);
       if(top.length){
-        card.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"3px"}},"Top regions"));
+        demo.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"3px"}},"Top regions"));
         const tr=h("div",{style:{display:"flex",gap:"4px",flexWrap:"wrap"}});
-        top.forEach(c=>tr.appendChild(h("span",{style:{fontSize:"11px",padding:"2px 7px",background:"var(--s2)",borderRadius:"10px",color:"var(--text)"}},c.name+" "+(c.pct||0).toFixed(0)+"%")));
-        card.appendChild(tr);
+        top.forEach(c=>tr.appendChild(h("span",{style:{fontSize:"11px",padding:"2px 7px",background:"var(--s2)",borderRadius:"10px",color:"var(--text)"}},c.code+" "+c.pct.toFixed(0)+"%")));
+        demo.appendChild(tr);
       }
-      return card;
-    };
-    if(st.studio?.audience||st.studio?.followers){
-      const demoRow=h("div",{style:{display:"grid",gridTemplateColumns:"1fr",gap:"8px",marginBottom:"4px"}});
-      demoRow.appendChild(demoCard(st.studio?.audience,"👀 Viewers (people reached)","#8b5cf6"));
-      demoRow.appendChild(demoCard(st.studio?.followers,"⭐ Followers (your fanbase)","#22c55e"));
-      main.appendChild(demoRow);
-      // Compare callout
-      if(st.studio?.audience&&st.studio?.followers){
-        const av=st.studio.audience.gender||{},fv=st.studio.followers.gender||{};
-        if((av.male||0)>0&&(fv.male||0)>0){
-          const diff=Math.abs((av.male||0)-(fv.male||0));
-          if(diff>15){
-            main.appendChild(h("div",{style:{padding:"8px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:"6px",fontSize:"12px",color:"var(--text2)",marginBottom:"10px",lineHeight:"1.5"}},
-              "⚠ Audience vs follower gender mismatch ("+diff.toFixed(0)+"% gap) — your reach is hitting a different demographic than your fanbase. Worth a marketing review."
-            ));
-          }
-        }
-      }
+      main.appendChild(demo);
     }
 
     const mg=h("div",{className:"g2",style:{marginBottom:"14px"}});mg.appendChild(met("Posted",String(postedCt),postedCt>=10?"#22c55e":"#f59e0b"));mg.appendChild(met("Planned",String(pwk.filter(p=>!p.posted).length),"#8b5cf6"));main.appendChild(mg);
@@ -1540,6 +1721,30 @@ function render(){
   if(tab==="money"){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"P+L"));
     main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"12px",margin:"0 0 12px"}},"TikTok Shop affiliate commission tracking."));
+
+    // ─── Follower growth chart (from TikTok Studio CSV) ───
+    if(st.studio?.history?.days?.length){
+      const days=st.studio.history.days;
+      const oldest=days[days.length-1],newest=days[0];
+      const totalGain=newest.count-oldest.count;
+      const bestDay=days.reduce((m,d)=>(d.delta||0)>(m?.delta||0)?d:m,null);
+      const followerBox=h("div",{style:{padding:"12px",background:"var(--s1)",border:"1px solid var(--s4)",borderRadius:"8px",marginBottom:"14px"}});
+      followerBox.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text3)",fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}},"Follower Growth ("+days.length+"d)"));
+      const numRow=h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"6px",marginBottom:"10px"}});
+      numRow.appendChild(h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:"16px",fontWeight:800,color:"var(--text)"}},newest.count.toLocaleString()),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},"Current")));
+      numRow.appendChild(h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:"16px",fontWeight:800,color:totalGain>=0?"#22c55e":"#ef4444"}},(totalGain>=0?"+":"")+totalGain.toLocaleString()),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},"Net gain")));
+      numRow.appendChild(h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:"16px",fontWeight:800,color:"#22c55e"}},"+"+(bestDay?.delta||0)),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},"Best day")));
+      followerBox.appendChild(numRow);
+      // Line: count over time (oldest → newest)
+      const counts=[...days].reverse().map(d=>d.count);
+      followerBox.appendChild(lineChart(counts,{w:320,h:60,color:"#3b82f6"}));
+      // Bars: daily delta
+      const deltas=[...days].reverse().map(d=>d.delta||0);
+      followerBox.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text4)",marginTop:"8px",marginBottom:"2px"}},"Daily change"));
+      followerBox.appendChild(deltaBars(deltas,{w:320,h:40}));
+      main.appendChild(followerBox);
+    }
+
     const g1=h("div",{className:"g2",style:{marginBottom:"10px"}});g1.appendChild(met("Week Commission","£"+wRev.toFixed(0),"#22c55e"));g1.appendChild(met("Week Profit","£"+wProf.toFixed(0),wProf>=0?"#22c55e":"#ef4444"));g1.appendChild(met("Month Commission","£"+mRev.toFixed(0),"#8b5cf6"));g1.appendChild(met("Month Profit","£"+mProf.toFixed(0),mProf>=0?"#22c55e":"#ef4444"));main.appendChild(g1);
     const g2=h("div",{className:"g2",style:{marginBottom:"14px"}});g2.appendChild(met("Sales",String(wOrd)));g2.appendChild(met("Ad Spend","£"+wAd.toFixed(0),"#f59e0b"));main.appendChild(g2);
     main.appendChild(sec("Target: £10,000/mo",div=>{const b=h("div",{className:"p"});b.appendChild(h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:"4px"}},h("span",{style:{fontSize:"13px",color:"var(--text2)"}},"Progress"),h("span",{style:{fontSize:"13px",fontWeight:700,color:"var(--text)"}},"£"+mRev.toFixed(0)+" / £10k")));b.appendChild(h("div",{style:{height:"6px",background:"var(--bg2)",borderRadius:"3px",overflow:"hidden"}},h("div",{style:{width:Math.min(100,mRev/100)+"%",height:"100%",background:mRev>=10000?"#22c55e":"#8b5cf6",borderRadius:"3px"}})));div.appendChild(b)}));
