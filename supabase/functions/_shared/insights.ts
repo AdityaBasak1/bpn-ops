@@ -64,19 +64,12 @@ export function buildInsightsContext(snapshots: {
   const listCap = Math.min(win, 30);                          // cap per-day listings to keep the prompt compact
 
   parts.push("## ANALYSIS WINDOW");
-  parts.push(`All data below is limited to the most recent ${win} days. For trend comparisons, the most recent ${cmp} days are compared against the ${cmp} days immediately before them.\n`);
+  parts.push(`All data below is from the account's last-${win}-day TikTok Studio export. For trend comparisons, the most recent ${cmp} days are compared against the ${cmp} days immediately before them.\n`);
 
-  // ── Top videos (filter to those posted within the window) ────────────────
-  let videos = snapshots.contentTop?.videos || [];
-  if (win < 365 && videos.length) {
-    const cutoff = Date.now() - win * 86400000;
-    videos = videos.filter((v) => {
-      const t = Date.parse(String(v.postDate || ""));
-      return Number.isNaN(t) ? false : t >= cutoff; // drop undated/out-of-window videos
-    });
-  }
+  // ── Top videos (already scoped to this window's export by TikTok) ────────
+  const videos = snapshots.contentTop?.videos || [];
   if (videos.length) {
-    parts.push(`## TOP VIDEOS (sorted by views, posted in last ${win} days)\n`);
+    parts.push("## TOP VIDEOS (sorted by views)\n");
     parts.push(videos.map((v, i) => {
       const title = String(v.title || "").replace(/\s+/g, " ").slice(0, 200);
       return `${i + 1}. "${title}"\n   posted ${v.postDate} · views ${v.views} · likes ${v.likes} · comments ${v.comments} · shares ${v.shares} · engagement ${v.engagementPct}%`;

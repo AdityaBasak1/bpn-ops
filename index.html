@@ -95,14 +95,18 @@ function getLinks(cfg){
 
 function buildUTM(base,src,med,camp){try{const u=new URL(base.startsWith("http")?base:"https://"+base);if(src)u.searchParams.set("utm_source",src);if(med)u.searchParams.set("utm_medium",med);if(camp)u.searchParams.set("utm_campaign",camp.toLowerCase().replace(/\s+/g,"-"));return u.toString()}catch{return""}}
 
+// Blank set of TikTok Studio snapshot slots (one import-window's worth)
+function emptyStudioSlots(){return {contentTop:null,overview:null,viewers:null,history:null,activity:null,gender:null,countries:null}}
+
 // ─── State ───
 let st={
   screen:"loading", // loading, auth, team, app
   user:null, teamId:null, teamName:null,
   tab:"today", cfg:getCfg(),
   signals:[], posts:[], promos:[],
-  // Latest TikTok Studio CSV snapshots, keyed by kind
-  studio:{contentTop:null,overview:null,viewers:null,history:null,activity:null,gender:null,countries:null},
+  // Active-window TikTok Studio snapshots (derived = studioByWindow[insightWindow])
+  studio:emptyStudioSlots(),
+  studioByWindow:{}, // {7:{...slots},28:{...},365:{...}} — a separate import is kept per window
   insightRun:null,         // {insights, generatedAt, ts, windowDays} from analyze-videos
   insightRunning:false,    // true while analyze-videos call is in flight
   insightError:"",
@@ -153,16 +157,21 @@ async function loadAll(){
     if(maxTs)localStorage.setItem("bpn-ls",String(maxTs));
     st.lastScan=maxTs||st.lastScan;
   }
-  // Latest TikTok Studio snapshot per kind
+  // Latest TikTok Studio snapshot per kind, grouped by import window (7/28/365).
+  // Legacy rows have no windowDays → bucketed under 365 for backward compatibility.
   const STUDIO_KINDS={content_top:"contentTop",daily_overview:"overview",daily_viewers:"viewers",follower_history:"history",follower_activity:"activity",follower_gender:"gender",follower_countries:"countries"};
-  const studio={contentTop:null,overview:null,viewers:null,history:null,activity:null,gender:null,countries:null};
+  const studioByWindow={};
   (studioFromDB||[]).forEach(r=>{
     const slot=STUDIO_KINDS[r.kind];
-    if(slot&&(!studio[slot]||(r.ts||0)>(studio[slot].ts||0)))studio[slot]=r;
+    if(!slot)return;
+    const win=r.windowDays||365;
+    const set=(studioByWindow[win]=studioByWindow[win]||emptyStudioSlots());
+    if(!set[slot]||(r.ts||0)>(set[slot].ts||0))set[slot]=r;
   });
+  const studio=studioByWindow[st.insightWindow]||emptyStudioSlots();
   // Latest insight run (single row)
   const insightRun=(insightFromDB||[]).sort((a,b)=>(b.ts||0)-(a.ts||0))[0]||null;
-  S({signals,posts,promos,autoSignals,studio,insightRun,screen:"roar"});
+  S({signals,posts,promos,autoSignals,studioByWindow,studio,insightRun,screen:"roar"});
 }
 
 
@@ -653,10 +662,15 @@ async function importTikTokCSVText(text){
 
 // ─── TikTok Studio CSV Import (7 kinds: detected by filename + headers) ───
 
-// Save a studio snapshot row (upsert by fixed item_id)
+// Save a studio snapshot row. Tagged with the currently-selected window so each
+// of the 7/28/365-day exports is stored separately (item_id is window-suffixed).
 async function upsertStudioSnapshot(kind,itemId,payload){
-  try{await sb.from("bpn").delete().eq("team_id",st.teamId).eq("type","studio_snapshot").eq("item_id",itemId)}catch{}
-  const row={id:itemId,kind,ts:Date.now(),...payload};
+  const win=st.insightWindow||365;
+  const wid=itemId+"-w"+win;
+  // Replace this window's row; also clear any legacy pre-window row (it bucketed as 365).
+  const stale=win===365?[wid,itemId]:[wid];
+  try{await sb.from("bpn").delete().eq("team_id",st.teamId).eq("type","studio_snapshot").in("item_id",stale)}catch{}
+  const row={id:wid,kind,windowDays:win,ts:Date.now(),...payload};
   await dbInsert("studio_snapshot",row);
   return row;
 }
@@ -671,7 +685,8 @@ async function importStudioFiles(files){
       results.push((out?"✓ ":"✗ ")+(f.name||"file")+(out?" — "+out:""));
     }catch(e){results.push("✗ "+f.name+": "+e.message)}
   }
-  alert("TikTok Studio import:\n"+results.join("\n"));
+  await loadAll(); // rebuild studioByWindow + active studio from the DB (authoritative)
+  alert("TikTok Studio import (into the Last "+st.insightWindow+"d set):\n"+results.join("\n"));
 }
 
 // Single CSV: dispatch by filename → fallback to headers
@@ -887,6 +902,21 @@ function deltaBars(data,{w=320,ht=50,posColor="#22c55e",negColor="#ef4444"}={}){
   return h("div",{style:{width:"100%"}},svg);
 }
 
+// Data-window selector (7/28/365) — switches the active Studio dataset + the agent's window.
+function studioWindowRow(){
+  const winRow=h("div",{style:{display:"flex",gap:"6px",marginBottom:"10px"}});
+  [[7,"Last 7d"],[28,"Last 28d"],[365,"Last 365d"]].forEach(([d,lbl])=>{
+    const active=st.insightWindow===d;
+    const has=st.studioByWindow&&st.studioByWindow[d]&&(st.studioByWindow[d].contentTop||st.studioByWindow[d].overview);
+    winRow.appendChild(h("button",{
+      style:{flex:"1",background:active?"#8b5cf6":"transparent",color:active?"#fff":"var(--text2)",border:"1px solid "+(active?"#8b5cf6":"var(--border)"),fontSize:"11px",fontWeight:700,padding:"5px 0",borderRadius:"6px",cursor:"pointer"},
+      disabled:st.insightRunning,
+      onClick:()=>{localStorage.setItem("bpn-insight-window",String(d));S({insightWindow:d,studio:(st.studioByWindow&&st.studioByWindow[d])||emptyStudioSlots()})}
+    },lbl+(has?"":" ·"))); // trailing dot = no data imported for that window yet
+  });
+  return winRow;
+}
+
 // ─── Insights card render ───
 function renderInsightsCard(){
   const box=h("div",{style:{padding:"12px",background:"linear-gradient(135deg,rgba(139,92,246,.10),rgba(255,0,79,.06))",border:"1px solid rgba(139,92,246,.3)",borderRadius:"10px",marginBottom:"14px"}});
@@ -896,24 +926,15 @@ function renderInsightsCard(){
   if(!hasData){
     header.appendChild(h("span",{style:{fontSize:"11px",color:"var(--text3)"}},"Import Studio CSVs ↓"));
     box.appendChild(header);
-    box.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text2)",lineHeight:"1.5"}},"Drop your TikTok Studio CSVs into the zone below, then click Get AI Insights to have Claude analyse what's working."));
+    box.appendChild(studioWindowRow());
+    box.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text2)",lineHeight:"1.5"}},"No data in the Last "+st.insightWindow+"d set yet. Drop that TikTok Studio export into the zone below, then click Get AI Insights — or switch windows above."));
     return box;
   }
   const runBtn=h("button",{style:{background:st.insightRunning?"var(--border)":"#8b5cf6",border:"none",color:"#fff",fontSize:"12px",fontWeight:700,padding:"6px 12px",borderRadius:"6px",cursor:st.insightRunning?"wait":"pointer"},disabled:st.insightRunning,onClick:runInsights},
     st.insightRunning?"Analysing...":(st.insightRun?("↻ Re-analyse ("+st.insightWindow+"d)"):("🧠 Get AI Insights ("+st.insightWindow+"d)")));
   header.appendChild(runBtn);
   box.appendChild(header);
-  // Data-window selector — controls how many days of Studio data the agent analyses.
-  const winRow=h("div",{style:{display:"flex",gap:"6px",marginBottom:"10px"}});
-  [[7,"Last 7d"],[28,"Last 28d"],[365,"Last 365d"]].forEach(([d,lbl])=>{
-    const active=st.insightWindow===d;
-    winRow.appendChild(h("button",{
-      style:{flex:"1",background:active?"#8b5cf6":"transparent",color:active?"#fff":"var(--text2)",border:"1px solid "+(active?"#8b5cf6":"var(--border)"),fontSize:"11px",fontWeight:700,padding:"5px 0",borderRadius:"6px",cursor:"pointer"},
-      disabled:st.insightRunning,
-      onClick:()=>{localStorage.setItem("bpn-insight-window",String(d));S({insightWindow:d})}
-    },lbl));
-  });
-  box.appendChild(winRow);
+  box.appendChild(studioWindowRow());
   if(st.insightRun&&st.insightRun.windowDays&&st.insightRun.windowDays!==st.insightWindow){
     box.appendChild(h("div",{style:{fontSize:"11px",color:"#fbbf24",marginBottom:"8px"}},"Showing insights for last "+st.insightRun.windowDays+"d — re-analyse to apply the "+st.insightWindow+"d window."));
   }
@@ -1756,10 +1777,13 @@ function render(){
     if(st.studio?.activity)haveKinds.push("Activity");
     if(st.studio?.gender)haveKinds.push("Gender");
     if(st.studio?.countries)haveKinds.push("Regions");
-    studioDrop.appendChild(h("div",{style:{fontSize:"14px",fontWeight:700,color:"var(--accent-text)",marginBottom:"3px"}},"Drop TikTok Studio CSVs here"));
+    studioDrop.appendChild(h("div",{style:{fontSize:"14px",fontWeight:700,color:"var(--accent-text)",marginBottom:"3px"}},"Drop TikTok Studio CSVs → Last "+st.insightWindow+"d set"));
     studioDrop.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",lineHeight:"1.5"}},
-      haveKinds.length?"Loaded: "+haveKinds.join(" · ")+" ("+haveKinds.length+"/7)":"Drop all 7 CSVs at once — auto-detects each"
+      haveKinds.length?"Loaded ("+st.insightWindow+"d): "+haveKinds.join(" · ")+" ("+haveKinds.length+"/7)":"Drop all 7 CSVs at once — auto-detects each. Saved into the Last "+st.insightWindow+"d set."
     ));
+    // Show which windows already have a Content snapshot, so it's clear what's loaded where
+    const setStatus=[7,28,365].map(w=>w+"d "+(st.studioByWindow&&st.studioByWindow[w]&&st.studioByWindow[w].contentTop?"✓":"—")).join(" · ");
+    studioDrop.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text4)",marginTop:"4px"}},"Sets: "+setStatus));
     studioDrop.addEventListener("dragover",e=>{e.preventDefault();studioDrop.style.background="rgba(139,92,246,.14)"});
     studioDrop.addEventListener("dragleave",e=>{e.preventDefault();studioDrop.style.background="rgba(139,92,246,.06)"});
     studioDrop.addEventListener("drop",e=>{e.preventDefault();studioDrop.style.background="rgba(139,92,246,.06)";const fs=Array.from(e.dataTransfer.files||[]).filter(f=>/\.csv$/i.test(f.name));if(fs.length)importStudioFiles(fs)});

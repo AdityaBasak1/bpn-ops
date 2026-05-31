@@ -79,10 +79,12 @@ Deno.serve(async (req) => {
     .from("bpn").select("payload")
     .eq("team_id", team_id).eq("type", "studio_snapshot");
 
-  const snapshots: Record<string, unknown> = {};
+  const snapshots: Record<string, { ts?: number }> = {};
   (rows || []).forEach((r: { payload: string }) => {
     try {
       const p = typeof r.payload === "string" ? JSON.parse(r.payload) : r.payload;
+      // Only consider snapshots from the requested import window (legacy rows = 365).
+      if ((Number(p.windowDays) || 365) !== windowDays) return;
       const slot = ({
         content_top: "contentTop",
         daily_overview: "overview",
@@ -92,12 +94,12 @@ Deno.serve(async (req) => {
         follower_gender: "gender",
         follower_countries: "countries",
       } as Record<string, string>)[p.kind];
-      if (slot) snapshots[slot] = p;
+      if (slot && (!snapshots[slot] || (Number(p.ts) || 0) > (Number(snapshots[slot].ts) || 0))) snapshots[slot] = p;
     } catch { /* skip malformed */ }
   });
 
   if (!snapshots.contentTop && !snapshots.overview) {
-    return json({ error: "No TikTok Studio data found. Import CSVs first." }, 400);
+    return json({ error: `No TikTok Studio data found for the last ${windowDays} days. Import that export first.` }, 400);
   }
 
   try {
