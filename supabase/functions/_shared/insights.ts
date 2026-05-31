@@ -2,7 +2,7 @@
 
 export const INSIGHTS_PROMPT = `You are an expert TikTok content strategist for @thebluepodcastnetwork — a UK football podcast account with ~13K followers, growing approximately 138% year-on-year. The account does affiliate marketing for TikTok Shop UK products.
 
-You will be given the account's analytics data covering up to 365 days:
+You will be given the account's analytics data for a selected time window (see "ANALYSIS WINDOW" below — it may be the last 7, 28, or 365 days):
 - Top videos (title, views, likes, comments, shares, engagement rate, post date)
 - Daily account-wide views, profile views, and engagement
 - Daily new vs returning viewer split
@@ -18,7 +18,7 @@ Goals:
 3. NEXT VIDEO IDEAS: 5 specific, posting-ready video concepts grounded in what's worked.
 4. BEST TIMING: Hour-of-day and day-of-week recommendations from the activity heatmap and daily metrics.
 5. DEMOGRAPHIC INSIGHTS: What does the audience composition imply for strategy?
-6. TREND WARNINGS: Compare recent 30 days vs prior 30 days. Surface any declines.
+6. TREND WARNINGS: Compare the recent vs prior halves of the window (see ANALYSIS WINDOW for the exact day counts). Surface any declines.
 
 CROSS-REFERENCE: When daily metrics show a spike, try to identify which video caused it.
 
@@ -46,7 +46,9 @@ Output ONLY valid JSON in this exact shape (no markdown, no commentary):
 
 Aim for 3-5 items in each list. Be concrete. Cite numbers. No filler.`;
 
-// Build a compact prompt-friendly context string from all the studio snapshots
+// Build a compact prompt-friendly context string from all the studio snapshots.
+// windowDays (7 | 28 | 365) limits every time-series to the most recent N days;
+// trend comparisons split that window into two equal halves (capped at 30 days each).
 export function buildInsightsContext(snapshots: {
   contentTop?: { videos?: Array<Record<string, unknown>> };
   overview?:   { days?:   Array<Record<string, unknown>> };
@@ -55,13 +57,26 @@ export function buildInsightsContext(snapshots: {
   activity?:   { hourly?: Record<string, number> };
   gender?:     { gender?: Record<string, number> };
   countries?:  { countries?: Array<Record<string, unknown>> };
-}): string {
+}, windowDays = 365): string {
   const parts: string[] = [];
+  const win = windowDays;
+  const cmp = Math.min(30, Math.max(1, Math.floor(win / 2))); // each side of the trend comparison
+  const listCap = Math.min(win, 30);                          // cap per-day listings to keep the prompt compact
 
-  // ── Top videos ───────────────────────────────────────────────────────────
-  const videos = snapshots.contentTop?.videos || [];
+  parts.push("## ANALYSIS WINDOW");
+  parts.push(`All data below is limited to the most recent ${win} days. For trend comparisons, the most recent ${cmp} days are compared against the ${cmp} days immediately before them.\n`);
+
+  // ── Top videos (filter to those posted within the window) ────────────────
+  let videos = snapshots.contentTop?.videos || [];
+  if (win < 365 && videos.length) {
+    const cutoff = Date.now() - win * 86400000;
+    videos = videos.filter((v) => {
+      const t = Date.parse(String(v.postDate || ""));
+      return Number.isNaN(t) ? false : t >= cutoff; // drop undated/out-of-window videos
+    });
+  }
   if (videos.length) {
-    parts.push("## TOP VIDEOS (sorted by views)\n");
+    parts.push(`## TOP VIDEOS (sorted by views, posted in last ${win} days)\n`);
     parts.push(videos.map((v, i) => {
       const title = String(v.title || "").replace(/\s+/g, " ").slice(0, 200);
       return `${i + 1}. "${title}"\n   posted ${v.postDate} · views ${v.views} · likes ${v.likes} · comments ${v.comments} · shares ${v.shares} · engagement ${v.engagementPct}%`;
@@ -69,45 +84,44 @@ export function buildInsightsContext(snapshots: {
     parts.push("");
   }
 
-  // ── Daily overview (CSVs are OLDEST-FIRST, so slice(-30) = most recent) ──
-  const days = snapshots.overview?.days || [];
+  // ── Daily overview (CSVs are OLDEST-FIRST, so slice(-N) = most recent) ──
+  const days = (snapshots.overview?.days || []).slice(-win);
   if (days.length) {
-    const recent30 = days.slice(-30);       // most recent 30 days
-    const prior30 = days.slice(-60, -30);   // 30 days before that
+    const recent = days.slice(-cmp);          // most recent cmp days
+    const prior = days.slice(-2 * cmp, -cmp);  // cmp days before that
     const sumViews = (arr: typeof days) => arr.reduce((s, d) => s + Number(d.views || 0), 0);
-    const r30v = sumViews(recent30), p30v = sumViews(prior30);
+    const rv = sumViews(recent), pv = sumViews(prior);
     parts.push("## ACCOUNT-WIDE DAILY METRICS\n");
-    parts.push(`Total ${days.length} days of data. Last 30d: ${r30v.toLocaleString()} views. Prior 30d (days 30-60 ago): ${p30v.toLocaleString()} views. Change: ${p30v ? Math.round((r30v - p30v) / p30v * 100) : 0}%.\n`);
-    parts.push("Last 30 days (newest last):");
-    parts.push(recent30.map((d) => `  ${d.date}: views ${d.views} | likes ${d.likes} | comments ${d.comments} | shares ${d.shares} | profile views ${d.profileViews}`).join("\n"));
+    parts.push(`${days.length} days in window. Last ${cmp}d: ${rv.toLocaleString()} views. Prior ${cmp}d: ${pv.toLocaleString()} views. Change: ${pv ? Math.round((rv - pv) / pv * 100) : 0}%.\n`);
+    parts.push(`Daily breakdown (newest last, up to ${listCap} shown):`);
+    parts.push(days.slice(-listCap).map((d) => `  ${d.date}: views ${d.views} | likes ${d.likes} | comments ${d.comments} | shares ${d.shares} | profile views ${d.profileViews}`).join("\n"));
     parts.push("");
   }
 
-  // ── New vs returning viewers (last 30 days for trend detection) ──────────
-  const vdays = snapshots.viewers?.days || [];
+  // ── New vs returning viewers ─────────────────────────────────────────────
+  const vdays = (snapshots.viewers?.days || []).slice(-win);
   if (vdays.length) {
-    const recent = vdays.slice(-30);
-    const avgNewPct = recent.length ? Math.round(recent.reduce((s, d) => s + Number(d.newPct || 0), 0) / recent.length) : 0;
-    parts.push("## VIEWER COMPOSITION (last 30 days)\n");
+    const avgNewPct = Math.round(vdays.reduce((s, d) => s + Number(d.newPct || 0), 0) / vdays.length);
+    parts.push(`## VIEWER COMPOSITION (last ${win} days)\n`);
     parts.push(`Average new-viewer %: ${avgNewPct}% (high = FYP serving you to fresh audiences; low = mostly existing fans).`);
     parts.push("Daily breakdown (chronological):");
-    parts.push(recent.slice(-14).map((d) => `  ${d.date}: total ${d.total} | new ${d.new} (${d.newPct}%) | returning ${d.returning}`).join("\n"));
+    parts.push(vdays.slice(-Math.min(vdays.length, 14)).map((d) => `  ${d.date}: total ${d.total} | new ${d.new} (${d.newPct}%) | returning ${d.returning}`).join("\n"));
     parts.push("");
   }
 
   // ── Follower history (key milestones + recent trend) ─────────────────────
-  // hist is OLDEST-FIRST: hist[0] = a year ago, hist[length-1] = today
-  const hist = snapshots.history?.days || [];
+  // history is OLDEST-FIRST: [0] = start of window, [length-1] = today
+  const hist = (snapshots.history?.days || []).slice(-win);
   if (hist.length) {
     const oldest = hist[0], newest = hist[hist.length - 1];
-    const recent30 = hist.slice(-30);
-    const prior30 = hist.slice(-60, -30);
-    const gain30 = recent30.reduce((s, d) => s + Number(d.delta || 0), 0);
-    const gain60 = prior30.reduce((s, d) => s + Number(d.delta || 0), 0);
+    const recent = hist.slice(-cmp);
+    const prior = hist.slice(-2 * cmp, -cmp);
+    const gainR = recent.reduce((s, d) => s + Number(d.delta || 0), 0);
+    const gainP = prior.reduce((s, d) => s + Number(d.delta || 0), 0);
     const bestDay = hist.reduce((m, d) => (Number(d.delta) || 0) > (Number(m?.delta) || 0) ? d : m, hist[0]);
     parts.push("## FOLLOWER GROWTH\n");
-    parts.push(`${hist.length} days of history. Started at ${oldest?.count} (${oldest?.date}) → currently ${newest?.count} (${newest?.date}). Net change: ${((Number(newest?.count) || 0) - (Number(oldest?.count) || 0) >= 0 ? "+" : "")}${((Number(newest?.count) || 0) - (Number(oldest?.count) || 0)).toLocaleString()} followers over the year.`);
-    parts.push(`Last 30d gain: +${gain30}. Prior 30d gain (60-30 days ago): +${gain60}. Best single day: +${bestDay?.delta} on ${bestDay?.date}.`);
+    parts.push(`${hist.length} days in window. Started at ${oldest?.count} (${oldest?.date}) → currently ${newest?.count} (${newest?.date}). Net change: ${((Number(newest?.count) || 0) - (Number(oldest?.count) || 0) >= 0 ? "+" : "")}${((Number(newest?.count) || 0) - (Number(oldest?.count) || 0)).toLocaleString()} followers over the window.`);
+    parts.push(`Last ${cmp}d gain: +${gainR}. Prior ${cmp}d gain: +${gainP}. Best single day: +${bestDay?.delta} on ${bestDay?.date}.`);
     parts.push("");
   }
 

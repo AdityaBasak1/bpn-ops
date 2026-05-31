@@ -103,9 +103,10 @@ let st={
   signals:[], posts:[], promos:[],
   // Latest TikTok Studio CSV snapshots, keyed by kind
   studio:{contentTop:null,overview:null,viewers:null,history:null,activity:null,gender:null,countries:null},
-  insightRun:null,         // {insights, generatedAt, ts} from analyze-videos
+  insightRun:null,         // {insights, generatedAt, ts, windowDays} from analyze-videos
   insightRunning:false,    // true while analyze-videos call is in flight
   insightError:"",
+  insightWindow:Number(localStorage.getItem("bpn-insight-window"))||365, // 7 | 28 | 365 — data window the agent analyses
   sf:{keyword:"",source:SOURCES[0],velocity:5,notes:"",category:""},
   tsf:{name:"",url:"",category:"",price:25,note:""},
   pf:{platform:PLATS[0],caption:""},
@@ -250,7 +251,7 @@ async function runInsights(){
     const r=await fetch(`${SUPABASE_URL}/functions/v1/analyze-videos`,{
       method:"POST",
       headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-      body:JSON.stringify({team_id:st.teamId}),
+      body:JSON.stringify({team_id:st.teamId,windowDays:st.insightWindow}),
       signal:ctrl.signal
     });
     clearTimeout(timer);
@@ -259,7 +260,7 @@ async function runInsights(){
       S({insightRunning:false,insightError:data?.error||"Analysis failed ("+r.status+")"});
       return;
     }
-    const insightRun={insights:data.insights,generatedAt:data.generatedAt,ts:Date.now()};
+    const insightRun={insights:data.insights,generatedAt:data.generatedAt,ts:Date.now(),windowDays:st.insightWindow};
     S({insightRun,insightRunning:false,insightError:""});
   }catch(e){
     S({insightRunning:false,insightError:e.name==="AbortError"?"Timed out after 90s":(e.message||"Request failed")});
@@ -899,14 +900,28 @@ function renderInsightsCard(){
     return box;
   }
   const runBtn=h("button",{style:{background:st.insightRunning?"var(--border)":"#8b5cf6",border:"none",color:"#fff",fontSize:"12px",fontWeight:700,padding:"6px 12px",borderRadius:"6px",cursor:st.insightRunning?"wait":"pointer"},disabled:st.insightRunning,onClick:runInsights},
-    st.insightRunning?"Analysing...":(st.insightRun?"↻ Re-analyse":"🧠 Get AI Insights"));
+    st.insightRunning?"Analysing...":(st.insightRun?("↻ Re-analyse ("+st.insightWindow+"d)"):("🧠 Get AI Insights ("+st.insightWindow+"d)")));
   header.appendChild(runBtn);
   box.appendChild(header);
+  // Data-window selector — controls how many days of Studio data the agent analyses.
+  const winRow=h("div",{style:{display:"flex",gap:"6px",marginBottom:"10px"}});
+  [[7,"Last 7d"],[28,"Last 28d"],[365,"Last 365d"]].forEach(([d,lbl])=>{
+    const active=st.insightWindow===d;
+    winRow.appendChild(h("button",{
+      style:{flex:"1",background:active?"#8b5cf6":"transparent",color:active?"#fff":"var(--text2)",border:"1px solid "+(active?"#8b5cf6":"var(--border)"),fontSize:"11px",fontWeight:700,padding:"5px 0",borderRadius:"6px",cursor:"pointer"},
+      disabled:st.insightRunning,
+      onClick:()=>{localStorage.setItem("bpn-insight-window",String(d));S({insightWindow:d})}
+    },lbl));
+  });
+  box.appendChild(winRow);
+  if(st.insightRun&&st.insightRun.windowDays&&st.insightRun.windowDays!==st.insightWindow){
+    box.appendChild(h("div",{style:{fontSize:"11px",color:"#fbbf24",marginBottom:"8px"}},"Showing insights for last "+st.insightRun.windowDays+"d — re-analyse to apply the "+st.insightWindow+"d window."));
+  }
   if(st.insightError){
     box.appendChild(h("div",{style:{padding:"8px 10px",background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.3)",borderRadius:"5px",fontSize:"12px",color:"#fca5a5",marginBottom:"8px"}},"Error: "+st.insightError));
   }
   if(st.insightRunning){
-    box.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text2)",padding:"12px",textAlign:"center"}},"Claude is analysing your last year of data — typically 10-20 seconds…"));
+    box.appendChild(h("div",{style:{fontSize:"12px",color:"var(--text2)",padding:"12px",textAlign:"center"}},"Claude is analysing your last "+st.insightWindow+" days of data — typically 10-20 seconds…"));
     return box;
   }
   const ins=st.insightRun?.insights;
@@ -969,7 +984,7 @@ function renderInsightsCard(){
   if(st.insightRun?.generatedAt){
     const ago=Math.round((Date.now()-new Date(st.insightRun.generatedAt).getTime())/60000);
     const agoText=ago<60?ago+"m ago":Math.round(ago/60)+"h ago";
-    box.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text4)",marginTop:"8px",textAlign:"right"}},"Last analysed "+agoText+" · Sonnet 4.6"));
+    box.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text4)",marginTop:"8px",textAlign:"right"}},"Last analysed "+agoText+" · last "+(st.insightRun.windowDays||365)+"d · Sonnet 4.6"));
   }
   return box;
 }

@@ -61,10 +61,12 @@ Deno.serve(async (req) => {
   const { data: userData, error: userErr } = await userClient.auth.getUser();
   if (userErr || !userData?.user) return json({ error: "Invalid session" }, 401);
 
-  let payload: { team_id?: string };
+  let payload: { team_id?: string; windowDays?: number };
   try { payload = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
   const { team_id } = payload;
   if (!team_id) return json({ error: "team_id required" }, 400);
+  // Data window the agent analyses; only 7 / 28 / 365 are valid, default 365.
+  const windowDays = [7, 28, 365].includes(Number(payload.windowDays)) ? Number(payload.windowDays) : 365;
 
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const { data: membership } = await admin
@@ -99,7 +101,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const context = buildInsightsContext(snapshots);
+    const context = buildInsightsContext(snapshots, windowDays);
     const text = await callClaude(INSIGHTS_PROMPT, context, "claude-sonnet-4-6", 4096);
     const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
     let insights: unknown;
