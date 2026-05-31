@@ -1280,25 +1280,27 @@ function render(){
     main.appendChild(h("h2",{style:{fontSize:"17px",fontWeight:800,margin:"0 0 2px",color:"var(--text-h)"}},"Today"));
     main.appendChild(h("p",{style:{color:"var(--text4)",fontSize:"12px",margin:"0 0 12px"}},"What needs attention right now."));
 
-    // ─── TikTok Studio: 30-day trend + headline metrics ───
-    // CSVs are OLDEST-FIRST: slice(-30) is the most recent 30 days, already chronological
+    // ─── TikTok Studio: trend + headline metrics, scoped to the selected window ───
+    // st.studio is the active window's dataset; tiles + chart track st.insightWindow.
     if(st.studio?.overview?.days?.length){
-      const allDays=st.studio.overview.days;
-      const recent30=allDays.slice(-30); // last 30 days, oldest of those first
-      const total30Views=recent30.reduce((s,d)=>s+d.views,0);
-      const total30Likes=recent30.reduce((s,d)=>s+d.likes,0);
+      const win=st.insightWindow;
+      const recent=st.studio.overview.days.slice(-win); // the selected window's days (oldest-first)
+      const totalViews=recent.reduce((s,d)=>s+d.views,0);
+      const totalLikes=recent.reduce((s,d)=>s+d.likes,0);
       const histDays=st.studio.history?.days||[];
-      const followerGain30=histDays.slice(-30).reduce((s,d)=>s+(d.delta||0),0);
+      const followerGain=histDays.slice(-win).reduce((s,d)=>s+(d.delta||0),0);
+      const lbl=win+"d";
       // Big numbers row
       const bigRow=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"6px",marginBottom:"8px"}});
-      bigRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#22c55e"}},(total30Views/1000).toFixed(1)+"k"),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},"30d views")));
-      bigRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#ec4899"}},(total30Likes/1000).toFixed(1)+"k"),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},"30d likes")));
-      bigRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#3b82f6"}},(followerGain30>=0?"+":"")+followerGain30.toLocaleString()),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},"30d followers")));
+      bigRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#22c55e"}},(totalViews/1000).toFixed(1)+"k"),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},lbl+" views")));
+      bigRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#ec4899"}},(totalLikes/1000).toFixed(1)+"k"),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},lbl+" likes")));
+      bigRow.appendChild(h("div",{style:{padding:"8px",background:"var(--s1)",borderRadius:"6px",textAlign:"center"}},h("div",{style:{fontSize:"15px",fontWeight:800,color:"#3b82f6"}},(followerGain>=0?"+":"")+followerGain.toLocaleString()),h("div",{style:{fontSize:"10px",color:"var(--text4)",textTransform:"uppercase"}},lbl+" followers")));
       main.appendChild(bigRow);
+      main.appendChild(h("div",{style:{fontSize:"10px",color:"var(--text4)",marginBottom:"8px",textAlign:"center"}},"Last "+win+"d set · "+recent.length+" days of data · switch window on the Content tab"));
       // Line chart
       const chartWrap=h("div",{style:{padding:"10px 12px 4px",background:"var(--s1)",border:"1px solid var(--s4)",borderRadius:"8px",marginBottom:"12px"}});
-      chartWrap.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"6px"}},"Daily views (last 30 days)"));
-      chartWrap.appendChild(lineChart(recent30.map(d=>d.views),{w:320,ht:60,color:"#8b5cf6"}));
+      chartWrap.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text3)",marginBottom:"6px"}},"Daily views (last "+win+" days)"));
+      chartWrap.appendChild(lineChart(recent.map(d=>d.views),{w:320,ht:60,color:"#8b5cf6"}));
       main.appendChild(chartWrap);
       // Best-hour-to-post recommendation
       if(st.studio?.activity?.hourly){
