@@ -24,15 +24,40 @@ export async function callClaude(
       max_tokens: maxTokens,
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
+      stream: true,
     }),
   });
 
-  if (!r.ok) {
-    const err = await r.text();
+  if (!r.ok || !r.body) {
+    const err = await r.text().catch(() => "");
     throw new Error(`Anthropic ${r.status}: ${err.slice(0, 300)}`);
   }
 
-  const data = await r.json();
-  const block = (data.content || []).find((b: { type: string }) => b.type === "text");
-  return block?.text ?? "";
+  // Parse the SSE stream, accumulating text deltas. Streaming keeps the
+  // connection active during long (e.g. 365-day) generations that would
+  // otherwise risk an idle drop on a single blocking request.
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "", text = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? ""; // keep the trailing partial line for the next chunk
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t.startsWith("data:")) continue;
+      const payload = t.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      let evt: { type?: string; delta?: { type?: string; text?: string }; error?: { message?: string } };
+      try { evt = JSON.parse(payload); } catch { continue; } // skip keep-alive / partial lines
+      if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
+        text += evt.delta.text ?? "";
+      } else if (evt.type === "error") {
+        throw new Error(`Anthropic stream error: ${evt.error?.message || "unknown"}`);
+      }
+    }
+  }
+  return text;
 }
