@@ -107,7 +107,8 @@ let st={
   // Active-window TikTok Studio snapshots (derived = studioByWindow[insightWindow])
   studio:emptyStudioSlots(),
   studioByWindow:{}, // {7:{...slots},28:{...},365:{...}} — a separate import is kept per window
-  insightRun:null,         // {insights, generatedAt, ts, windowDays} from analyze-videos
+  insightRun:null,         // {insights, generatedAt, ts, windowDays} for the active window
+  insightByWindow:{},      // {7:run,28:run,365:run} — cached analysis per window
   insightRunning:false,    // true while analyze-videos call is in flight
   insightError:"",
   insightWindow:Number(localStorage.getItem("bpn-insight-window"))||365, // 7 | 28 | 365 — data window the agent analyses
@@ -169,9 +170,14 @@ async function loadAll(){
     if(!set[slot]||(r.ts||0)>(set[slot].ts||0))set[slot]=r;
   });
   const studio=studioByWindow[st.insightWindow]||emptyStudioSlots();
-  // Latest insight run (single row)
-  const insightRun=(insightFromDB||[]).sort((a,b)=>(b.ts||0)-(a.ts||0))[0]||null;
-  S({signals,posts,promos,autoSignals,studioByWindow,studio,insightRun,screen:"roar"});
+  // Cached insight run per window (legacy rows with no windowDays → bucket as 365)
+  const insightByWindow={};
+  (insightFromDB||[]).forEach(r=>{
+    const win=r.windowDays||365;
+    if(!insightByWindow[win]||(r.ts||0)>(insightByWindow[win].ts||0))insightByWindow[win]=r;
+  });
+  const insightRun=insightByWindow[st.insightWindow]||null;
+  S({signals,posts,promos,autoSignals,studioByWindow,studio,insightByWindow,insightRun,screen:"roar"});
 }
 
 
@@ -270,7 +276,7 @@ async function runInsights(){
       return;
     }
     const insightRun={insights:data.insights,generatedAt:data.generatedAt,ts:Date.now(),windowDays:st.insightWindow};
-    S({insightRun,insightRunning:false,insightError:""});
+    S({insightRun,insightByWindow:{...st.insightByWindow,[st.insightWindow]:insightRun},insightRunning:false,insightError:""});
   }catch(e){
     S({insightRunning:false,insightError:e.name==="AbortError"?"Timed out after 140s — try a smaller window (7d/28d), then re-run 365d":(e.message||"Request failed")});
   }
@@ -911,7 +917,7 @@ function studioWindowRow(){
     winRow.appendChild(h("button",{
       style:{flex:"1",background:active?"#8b5cf6":"transparent",color:active?"#fff":"var(--text2)",border:"1px solid "+(active?"#8b5cf6":"var(--border)"),fontSize:"11px",fontWeight:700,padding:"5px 0",borderRadius:"6px",cursor:"pointer"},
       disabled:st.insightRunning,
-      onClick:()=>{localStorage.setItem("bpn-insight-window",String(d));S({insightWindow:d,studio:(st.studioByWindow&&st.studioByWindow[d])||emptyStudioSlots()})}
+      onClick:()=>{localStorage.setItem("bpn-insight-window",String(d));S({insightWindow:d,studio:(st.studioByWindow&&st.studioByWindow[d])||emptyStudioSlots(),insightRun:(st.insightByWindow&&st.insightByWindow[d])||null})}
     },lbl+(has?"":" ·"))); // trailing dot = no data imported for that window yet
   });
   return winRow;
@@ -935,8 +941,12 @@ function renderInsightsCard(){
   header.appendChild(runBtn);
   box.appendChild(header);
   box.appendChild(studioWindowRow());
-  if(st.insightRun&&st.insightRun.windowDays&&st.insightRun.windowDays!==st.insightWindow){
-    box.appendChild(h("div",{style:{fontSize:"11px",color:"#fbbf24",marginBottom:"8px"}},"Showing insights for last "+st.insightRun.windowDays+"d — re-analyse to apply the "+st.insightWindow+"d window."));
+  // CSVs re-imported after this window's cached analysis → suggest a refresh
+  if(st.insightRun&&st.insightRun.ts){
+    const dataTs=Math.max(0,...Object.values(st.studio||{}).map(s=>(s&&s.ts)||0));
+    if(dataTs>st.insightRun.ts){
+      box.appendChild(h("div",{style:{fontSize:"11px",color:"#fbbf24",marginBottom:"8px"}},"Data updated since this analysis — re-analyse to refresh the "+st.insightWindow+"d insights."));
+    }
   }
   if(st.insightError){
     box.appendChild(h("div",{style:{padding:"8px 10px",background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.3)",borderRadius:"5px",fontSize:"12px",color:"#fca5a5",marginBottom:"8px"}},"Error: "+st.insightError));

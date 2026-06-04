@@ -122,16 +122,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Cache the result (upsert by item_id)
-    const itemId = "latest-insights";
-    const cacheRow = { id: itemId, kind: "insight_run", insights, generatedAt: new Date().toISOString(), ts: Date.now() };
+    // Cache the result per window (upsert by window-tagged item_id) so each of
+    // 7/28/365 keeps its own analysis and they don't overwrite each other.
+    const itemId = "latest-insights-w" + windowDays;
+    const cacheRow = { id: itemId, kind: "insight_run", windowDays, insights, generatedAt: new Date().toISOString(), ts: Date.now() };
     try { await admin.from("bpn").delete().eq("team_id", team_id).eq("type", "insight_run").eq("item_id", itemId); } catch { /* ignore */ }
     await admin.from("bpn").insert({
       team_id, type: "insight_run", item_id: itemId,
       payload: JSON.stringify(cacheRow), ts: Date.now(),
     });
 
-    return json({ insights, generatedAt: cacheRow.generatedAt });
+    return json({ insights, generatedAt: cacheRow.generatedAt, windowDays });
   } catch (e) {
     return json({ error: (e as Error).message }, 502);
   }
