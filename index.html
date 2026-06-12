@@ -989,6 +989,7 @@ function renderInsightsCard(){
     c.appendChild(h("div",{style:{fontSize:"13px",fontWeight:700,color:"#fbbf24",lineHeight:"1.4"}},idea.title));
     if(idea.rationale)c.appendChild(h("div",{style:{fontSize:"11px",color:"var(--text2)",marginTop:"3px",lineHeight:"1.5"}},idea.rationale));
     if(idea.predictedViewRange)c.appendChild(h("div",{style:{fontSize:"11px",color:"#f59e0b",fontWeight:600,marginTop:"3px"}},"Predicted views: "+idea.predictedViewRange));
+    if(idea.productPlacement)c.appendChild(h("div",{style:{fontSize:"11px",color:"#34d399",marginTop:"4px",lineHeight:"1.5"}},"🛍️ Product placement: "+idea.productPlacement));
     return c;
   });
   if(ins.bestTiming){

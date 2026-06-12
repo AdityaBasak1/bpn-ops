@@ -15,7 +15,7 @@ Your job: identify SPECIFIC, ACTIONABLE patterns in this data. Cite real numbers
 Goals:
 1. WINNING PATTERNS: What specifically makes top videos succeed? Reference titles, formats, hooks, hashtags.
 2. LOSING PATTERNS: What's in the bottom-performing videos that's missing from winners?
-3. NEXT VIDEO IDEAS: 5 specific, posting-ready video concepts grounded in what's worked.
+3. NEXT VIDEO IDEAS: 5 specific, posting-ready video concepts grounded in what's worked. CRITICAL COMPLIANCE RULE: this is an affiliate account, so every idea MUST build the linked TikTok Shop product into the video itself — the product has to be explicitly shown (worn / held / on-screen) or verbally named during the video, and it must be the exact product that gets linked. Thematic relevance alone is NOT allowed: TikTok Shop issues "irrelevant content" violations for any linked product that is not displayed or mentioned in the video, and these strikes accumulate toward affiliate suspension. So do NOT propose pure talking-head/opinion concepts that merely relate to a product's theme — for each idea, state exactly how and when the product appears on screen or is spoken about.
 4. BEST TIMING: Hour-of-day and day-of-week recommendations from the activity heatmap and daily metrics.
 5. DEMOGRAPHIC INSIGHTS: What does the audience composition imply for strategy?
 6. TREND WARNINGS: Compare the recent vs prior halves of the window (see ANALYSIS WINDOW for the exact day counts). Surface any declines.
@@ -33,7 +33,7 @@ Output ONLY valid JSON in this exact shape (no markdown, no commentary):
     {"pattern": "short title", "evidence": "specific cite from data"}
   ],
   "nextVideoIdeas": [
-    {"title": "the actual video title to post", "rationale": "why this will work based on data", "predictedViewRange": "e.g. '50k-100k'"}
+    {"title": "the actual video title to post", "rationale": "why this will work based on data", "predictedViewRange": "e.g. '50k-100k'", "productPlacement": "the exact affiliate product to feature and how/when it is shown or named on screen, so the link is compliant (required — never leave blank)"}
   ],
   "bestTiming": {"hour": 19, "day": "Sunday", "reason": "data-grounded explanation"},
   "demographics": [
